@@ -44,12 +44,12 @@ Create Neutron user, service and endpoint::
     root@auth-node:~# keystone endpoint-create \
          --region RegionOne \
          --service neutron \
-         --publicurl http://neutron-node.example.org:9696 \
-         --adminurl http://neutron-node.example.org:9696 \
-         --internalurl http://10.0.0.9:9696
+         --publicurl http://network-node.example.org:9696 \
+         --adminurl http://network-node.example.org:9696 \
+         --internalurl http://network-node:9696
 
 
-``neutron-node`` configuration
+``network-node`` configuration
 ------------------------------
 
 Neutron si composed of three different kind of services:
@@ -61,12 +61,12 @@ Neutron si composed of three different kind of services:
   network node, to provide dhcp and routing capabilities)
 
 We are going to install the neutron server and main plugins/agents on
-the **neutron-node**, and the needed plugins on the compute
+the **network-node**, and the needed plugins on the compute
 node.
 
-Login on the **neutron-node** and install the following packages::
+Login on the **network-node** and install the following packages::
 
-    root@neutron-node:~# apt-get install python-mysqldb neutron-server \
+    root@network-node:~# apt-get install python-mysqldb neutron-server \
         neutron-dhcp-agent neutron-plugin-ml2 \
         neutron-plugin-openvswitch-agent neutron-l3-agent
 
@@ -84,7 +84,7 @@ present in ``/etc/sysctl.conf`` file::
 This file is read during the startup, but it is not read
 afterwards. To force Linux to re-read the file you can run::
 
-    root@neutron-node:~# sysctl -p /etc/sysctl.conf
+    root@network-node:~# sysctl -p /etc/sysctl.conf
     net.ipv4.ip_forward = 1
     net.ipv4.conf.default.rp_filter = 0
     net.ipv4.conf.all.rp_filter = 0
@@ -97,14 +97,14 @@ RabbitMQ, keystone and MySQL information::
 
     # RabbitMQ configuration
     rpc_backend = neutron.openstack.common.rpc.impl_kombu
-    rabbit_host = 10.0.0.3
+    rabbit_host = db-node
     rabbit_password = gridka
     # ...
 
     # Keystone configuration
     auth_strategy = keystone
     [keystone_authtoken]
-    auth_host = 10.0.0.4
+    auth_host = auth-node
     auth_port = 35357
     auth_protocol = http
     admin_tenant_name = service
@@ -115,7 +115,11 @@ RabbitMQ, keystone and MySQL information::
     # ...
     # MySQL configuration
     [database]
-    connection = mysql://neutron:gridka@10.0.0.3/neutron
+    connection = mysql://neutron:gridka@db-node/neutron
+
+    .. for kilo:
+       auth_uri = http://auth-node:35357/v2.0/
+       identity_uri = http://auth-node:5000
 
 Then, we need to also update the configuration related to ML2, the
 plugin we are going to use. Again in the
@@ -138,11 +142,11 @@ communicate any change in the network topology. Again in the
 
     notify_nova_on_port_status_changes = True
     notify_nova_on_port_data_changes = True
-    nova_url = http://10.0.0.6:8774/v2
+    nova_url = http://api-node:8774/v2
     nova_admin_username = nova
     nova_admin_tenant_id = 3dff3552489e458c85143a84759db398
     nova_admin_password = gridka
-    nova_admin_auth_url = http://10.0.0.4:35357/v2.0
+    nova_admin_auth_url = http://auth-node:35357/v2.0
 
 
 The L3-agent (responsible for routing) reads the
@@ -187,7 +191,7 @@ service and the `metadata-agent`::
     admin_user = neutron
     admin_password = gridka
     # IP of the nova-api/nova-metadata-api service
-    nova_metadata_ip = 10.0.0.6
+    nova_metadata_ip = api-node
     metadata_proxy_shared_secret = d1a6195d-5912-4ef9-b01f-426603d56bd2
 
 `nova-api` service
@@ -219,7 +223,7 @@ options are set::
 
     [ml2]
     # ...
-    type_drivers = gre
+    type_drivers = gre,flat
     tenant_network_types = gre
     mechanism_drivers = openvswitch
 
@@ -237,8 +241,17 @@ options are set::
 
     [securitygroup]
     # ...
-    firewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
     enable_security_group = True
+
+    ..
+       firewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+
+Database bootstrap
+------------------
+
+Initialize the database with::
+
+    root@network-node:~# neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade juno
 
  
 OpenVSwitch
@@ -247,7 +260,7 @@ OpenVSwitch
 The package installer should have already created a `br-int` interface
 (integration network), used to allow VM-to-VM communication::
 
-    root@neutron-node:~# ovs-vsctl show
+    root@network-node:~# ovs-vsctl show
     1a05c398-3024-493f-b3c4-a01912688ba4
         Bridge br-int
             fail_mode: secure
@@ -258,33 +271,79 @@ The package installer should have already created a `br-int` interface
 
 If not, create one with the following command::
 
-    root@neutron-node:~# ovs-vsctl add-br br-int
+    root@network-node:~# ovs-vsctl add-br br-int
 
-Then, we need a bridge for external traffic::
+..
+   Then, we need a bridge for external traffic::
 
-    root@neutron-node:~# ovs-vsctl add-br br-ex
+       root@network-node:~# ovs-vsctl add-br br-ex
 
-The `br-ex` needs to be connected to the  `public network`, in our
-case interface `eth2`, therefore you need to run the following command::
+   Now it gets a bit tricky for us. Ideally, you would have two network
+   interfaces, one used to access the network node using the public IP,
+   and the other connected to all the public networks you want to make
+   available for your VMs.
 
-    root@neutron-node:~# ovs-vsctl add-port br-ex eth2
+   However, because of the limitations in OpenStack (VMs can only have
+   one interface per network) and the filters OpenStack put in place to
+   prevent spoofing and other nasty hacks, we have to:
 
-After this, the openvswitch configuration should look like::
+   * attach the `eth0` network interface to `br-ex`
+   * give the ip of `eth0` to `br-ex`
+   * swap the mac addresses of `br-ex` and `eth0`
 
-    root@neutron-node:~# ovs-vsctl show
-    1a05c398-3024-493f-b3c4-a01912688ba4
-        Bridge br-ex
-            Port br-ex
-                Interface br-ex
-                    type: internal
-            Port "eth2"
-                Interface "eth2"
-        Bridge br-int
-            fail_mode: secure
-            Port br-int
-                Interface br-int
-                    type: internal
-        ovs_version: "2.0.1"
+   In order to do that you will need to connect to the VM from one of the
+   internal nodes, since otherwise you will kick yourself out::
+
+       root@api-node:~# ssh network-node
+       Welcome to Ubuntu 14.04.2 LTS (GNU/Linux 3.13.0-32-generic x86_64)
+
+        * Documentation:  https://help.ubuntu.com/
+       root@network-node:~# ip a show dev eth0
+       2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc pfifo_fast state UP group default qlen 1000
+           link/ether fa:16:3e:7d:f4:99 brd ff:ff:ff:ff:ff:ff
+           inet 172.23.4.179/16 brd 172.23.255.255 scope global eth0
+              valid_lft forever preferred_lft forever
+           inet6 fe80::f816:3eff:fe7d:f499/64 scope link 
+              valid_lft forever preferred_lft forever
+       root@network-node:~# ip link show dev br-ex
+       7: br-ex: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN mode DEFAULT group default 
+           link/ether e6:a0:2c:ce:1f:46 brd ff:ff:ff:ff:ff:ff
+       root@network-node:~# ip link show dev eth0
+       2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
+           link/ether fa:16:3e:7d:f4:99 brd ff:ff:ff:ff:ff:ff
+       root@network-node:~# ovs-vsctl add-port br-ex eth0
+       root@network-node:~# ifconfig br-ex 172.23.4.179/16
+       root@network-node:~# ifconfig eth0 0.0.0.0
+       root@network-node:~# ifconfig eth0 promisc
+       root@network-node:~# ifconfig br-ex hw ether fa:16:3e:7d:f4:99
+       root@network-node:~# ifconfig eth0 hw ether e6:a0:2c:ce:1f:46
+       root@network-node:~# route add default gw 172.23.0.1
+
+   **IMPORTANT**: if you reboot this machine now, you will not be able to
+   connect to it again. While adding the `eth0` interface to `br-ex`
+   bridge is *preserved* after a reboot, setting the IP and the mac
+   address is not. You should update ``/etc/network/interfaces`` file to
+   preserve these settings, but this is out of the scope if this tutorial.
+
+   Also, whenever we create routers and ports, it might be possible that
+   the mac address of `br-ex` is changed back to the original one.
+
+   After this, the openvswitch configuration should look like::
+
+       root@network-node:~# ovs-vsctl show
+       1a05c398-3024-493f-b3c4-a01912688ba4
+           Bridge br-ex
+               Port br-ex
+                   Interface br-ex
+                       type: internal
+               Port "eth0"
+                   Interface "eth0"
+           Bridge br-int
+               fail_mode: secure
+               Port br-int
+                   Interface br-int
+                       type: internal
+           ovs_version: "2.0.1"
 
 ..
    Depending on your network interface driver, you may need to disable
@@ -295,41 +354,42 @@ After this, the openvswitch configuration should look like::
 
    # ethtool -K INTERFACE_NAME gro off
 
-Please note that the network configuration of the neutron node should
-look like (also refer `troubleshooting session <troubleshooting1.rst>`_)::
+..
+   Please note that the network configuration of the neutron node should
+   look like (also refer `troubleshooting session <troubleshooting1.rst>`_)::
 
-    auto eth0
-    iface eth0 inet static
-        address 10.0.0.9
-        netmask 255.255.255.0
-        network 10.0.0.0
-        broadcast 10.0.0.255
+       auto eth0
+       iface eth0 inet static
+           address 10.0.0.9
+           netmask 255.255.255.0
+           network 10.0.0.0
+           broadcast 10.0.0.255
 
-    auto eth1
-    iface eth1 inet static
-        address 172.16.0.9
-        netmask 255.255.0.0
-        broadcast 172.16.255.255
-        gateway 172.16.0.1
-        dns-nameservers 141.52.27.35
-        dns-search example.org
+       auto eth1
+       iface eth1 inet static
+           address 172.16.0.9
+           netmask 255.255.0.0
+           broadcast 172.16.255.255
+           gateway 172.16.0.1
+           dns-nameservers 141.52.27.35
+           dns-search example.org
 
+..
+   Also, the `eth0` interface, used by the `br-ex` bridge, must be UP
+   and in promisc mode::
 
-Also, the `eth2` interface, used by the `br-ext` bridge, must be UP
-and in promisc mode::
+       root@network-node:~# ifconfig eth2 up promisc
 
-    root@neutron-node:~# ifconfig eth2 up promisc
+   This can be done automatically at boot by editing
+   ``/etc/network/interfaces``::
 
-This can be done automatically at boot by editing
-``/etc/network/interfaces``::
+       auto eth0
+       iface eth0 inet static
+           address 0.0.0.0
+           up ifconfig eth0 promisc
 
-    auto eth2
-    iface eth2 inet static
-        address 0.0.0.0
-        up ifconfig eth2 promisc
-
-Note that we don't assign any IP address, because this is done by
-neutron using virtual routers.
+   Note that we don't assign any IP address, because this is done by
+   neutron using virtual routers.
 
 ..
    Note: the following is only needed if you want to have the external
@@ -384,155 +444,10 @@ Almost done!
 
 Restart services::
 
-    root@neutron-node:~# service neutron-server restart
-    root@neutron-node:~# service neutron-dhcp-agent restart
-    root@neutron-node:~# service neutron-l3-agent restart
-    root@neutron-node:~# service neutron-metadata-agent restart
-
-
-Nova-api configuration
-----------------------
-
-Nova compute service has to know that Neutron is being used. Connect
-to the **api-node** and update  ``/etc/nova/nova.conf`` file::
-
-    [DEFAULT]
-    # ...
-
-    # It is fine to have Noop here, because this is the *nova*
-    # firewall. Neutron is responsible of configuring the firewall and its
-    # configuration is stored in /etc/neutron/neutron.conf
-    network_api_class = nova.network.neutronv2.api.API
-    neutron_url = http://10.0.0.9:9696
-    neutron_auth_strategy = keystone
-    neutron_admin_tenant_name = service
-    neutron_admin_username = neutron
-    neutron_admin_password = gridka
-    neutron_admin_auth_url = http://10.0.0.4:35357/v2.0
-    linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
-    firewall_driver = nova.virt.firewall.NoopFirewallDriver
-    security_group_api = neutron
-
-
-Restart the services::
-
-    root@api-node:~# service nova-api restart
-    root@api-node:~# service nova-scheduler restart
-    root@api-node:~# service nova-conductor restart
-
-neutron on the compute node
----------------------------
-
-Login on the **compute-1** node and install openvswitch and neutron plugins::
-
-    root@compute-1:~# apt-get install neutron-plugin-openvswitch-agent neutron-plugin-ml2
-
-Ensure the `br-int` bridge has been created by the installer::
-
-    root@compute-1:~# ovs-vsctl show
-    62f8b342-8afa-4ce4-aa98-e2ab671d2837
-        Bridge br-int
-            fail_mode: secure
-            Port br-int
-                Interface br-int
-                    type: internal
-        ovs_version: "2.0.1"
-
-Ensure `rp_filter` is disabled. As we did before, you need to ensure
-the following lines are present in ``/etc/sysctl.conf`` file.
-
-This file is read during the startup, but it is not read
-afterwards. To force Linux to re-read the file you can run::
-
-    root@compute-1:~# sysctl -p /etc/sysctl.conf
-    net.ipv4.conf.all.rp_filter=0
-    net.ipv4.conf.default.rp_filter=0
-
-Configure RabbitMQ and Keystone options for neutron, by editing
-``/etc/neutron/neutron.conf``::
-
-    [DEFAULT]
-    # ...
-
-    rpc_backend = neutron.openstack.common.rpc.impl_kombu
-    rabbit_host = 10.0.0.3
-    rabbit_password = gridka
-
-    auth_strategy = keystone
-    # ...
-
-    [keystone_authtoken]
-    auth_host = 10.0.0.4
-    auth_port = 35357
-    auth_protocol = http
-    admin_tenant_name = service
-    admin_user = neutron
-    admin_password = gridka
-
-Again on ``/etc/neutron/neutron.conf``, configure the neutron to use
-the ML2 plugin::
-
-    [DEFAULT]
-    # ...
-
-    core_plugin = ml2
-    service_plugins = router
-    allow_overlapping_ips = True
-
-The ML2 plugin is configured in
-``/etc/neutron/plugins/ml2/ml2_conf.ini``::
-
-    [ml2]
-    # ...
-
-    type_drivers = gre
-    tenant_network_types = gre
-    mechanism_drivers = openvswitch
-    	
-    [ml2_type_gre]
-    # ...
-
-    tunnel_id_ranges = 1:1000
-    
-    [ovs]
-    # ...
-    local_ip = 10.0.0.20
-    tunnel_type = gre
-    enable_tunneling = True
-    	
-    [securitygroup]
-    # ...
-
-    firewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
-    enable_security_group = True
-
-Configure `nova-compute` so that it knows about neutron. In file
-``/etc/nova/nova.conf`` ensure the following lines are present::
-
-    [DEFAULT]
-    # ...
-
-    network_api_class = nova.network.neutronv2.api.API
-    neutron_url = http://10.0.0.9:9696
-    neutron_auth_strategy = keystone
-    neutron_admin_tenant_name = service
-    neutron_admin_username = neutron
-    neutron_admin_password = gridka
-    neutron_admin_auth_url = http://10.0.0.4:35357/v2.0
-    linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
-    firewall_driver = nova.virt.firewall.NoopFirewallDriver
-    security_group_api = neutron
-
-Restart `nova-compute` and the neutron agent::
-
-    root@compute-1:~# service nova-compute restart
-    nova-compute stop/waiting
-    nova-compute start/running, process 17740
-
-    root@compute-1:~# service neutron-plugin-openvswitch-agent restart
-    neutron-plugin-openvswitch-agent stop/waiting
-    neutron-plugin-openvswitch-agent start/running, process 17788
-
+    root@network-node:~# service neutron-server restart
+    root@network-node:~# service neutron-dhcp-agent restart
+    root@network-node:~# service neutron-l3-agent restart
+    root@network-node:~# service neutron-metadata-agent restart
 
 Default networks
 ----------------
@@ -549,7 +464,8 @@ setup the relevant environment variables (`OS_USERNAME`,
 `OS_PASSWORD`, `OS_TENANT_NAME`, `OS_AUTH_URL`) in order to use the
 `neutron` command::
 
-    root@neutron-node:~# neutron net-create external-net --shared --router:external=True
+    root@neutron-node:~# neutron net-create ext-net --router:external \
+         --provider:physical_network external --provider:network_type flat
     Created a new network:
     +---------------------------+--------------------------------------+
     | Field                     | Value                                |
@@ -570,10 +486,10 @@ setup the relevant environment variables (`OS_USERNAME`,
 Let's now create the L3 network, using the range of floating IPs we
 decided to use::
 
-    root@neutron-node:~# neutron subnet-create external-net --name ext-subnet \
-      --allocation-pool start=172.16.1.1,end=172.16.1.254 \
-      --disable-dhcp --gateway 172.16.0.1 \
-      172.16.0.0/16
+    root@neutron-node:~# neutron subnet-create ext-net --name ext-subnet \
+      --allocation-pool start=172.23.99.1,end=172.23.99.254 \
+      --disable-dhcp --gateway 172.23.0.1 \
+      172.23.0.0/16
     Created a new subnet:
     +------------------+------------------------------------------------+
     | Field            | Value                                          |
@@ -778,254 +694,4 @@ from the physical node::
     1 packets transmitted, 1 received, 0% packet loss, time 0ms
     rtt min/avg/max/mdev = 0.307/0.307/0.307/0.000 ms
 
-
-Testing instance creation
--------------------------
-
-
-::
-
-    root@auth-node:~# nova boot --flavor m1.tiny  --key-name gridka-auth-node \
-        --image cirros-0.3.0 \
-        --nic net-id=29c861dd-9bf9-4a4e-a0b6-3de62fa33dd5 test-1
-
-
-On the **neutron-node** the OpenVSwitch configuration now looks like::
-
-    root@neutron-node:~# ovs-vsctl show
-    1a05c398-3024-493f-b3c4-a01912688ba4
-        Bridge br-ex
-            Port br-ex
-                Interface br-ex
-                    type: internal
-            Port "eth2"
-                Interface "eth2"
-            Port "qg-808b139c-45"
-                Interface "qg-808b139c-45"
-                    type: internal
-        Bridge br-tun
-            Port br-tun
-                Interface br-tun
-                    type: internal
-            Port "gre-0a000014"
-                Interface "gre-0a000014"
-                    type: gre
-                    options: {in_key=flow, local_ip="10.0.0.9", out_key=flow, remote_ip="10.0.0.20"}
-            Port patch-int
-                Interface patch-int
-                    type: patch
-                    options: {peer=patch-tun}
-        Bridge br-int
-            fail_mode: secure
-            Port "tap1ddd9f69-d9"
-                tag: 1
-                Interface "tap1ddd9f69-d9"
-                    type: internal
-            Port patch-tun
-                Interface patch-tun
-                    type: patch
-                    options: {peer=patch-int}
-            Port br-int
-                Interface br-int
-                    type: internal
-            Port "qr-32ea1402-bb"
-                tag: 1
-                Interface "qr-32ea1402-bb"
-                    type: internal
-            ovs_version: "2.0.1"
-
-There are two namespaces defined, one for the router and one for the
-DHCP agent::
-
-    root@neutron-node:~# ip netns list
-    qdhcp-29c861dd-9bf9-4a4e-a0b6-3de62fa33dd5
-    qrouter-3616bd03-0100-4247-9699-2839e360a688
-
-On the namespace of the dhcp agent you will see the IP of the dhcp service::
-
-    root@neutron-node:~# ip netns exec qdhcp-29c861dd-9bf9-4a4e-a0b6-3de62fa33dd5 ip addr show
-    1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default 
-        link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-        inet 127.0.0.1/8 scope host lo
-           valid_lft forever preferred_lft forever
-    21: tap1ddd9f69-d9: <BROADCAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default 
-        link/ether fa:16:3e:19:61:2a brd ff:ff:ff:ff:ff:ff
-        inet 10.99.0.7/24 brd 10.99.0.255 scope global tap1ddd9f69-d9
-           valid_lft forever preferred_lft forever
-
-while the namespace of the router contains both the private and the
-public IP used by the `demo-router`, connecting the internal network
-`demo-subnet` and the external network::
-
-    root@neutron-node:~# ip netns exec qrouter-3616bd03-0100-4247-9699-2839e360a688 ip addr show
-    1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default 
-        link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-        inet 127.0.0.1/8 scope host lo
-           valid_lft forever preferred_lft forever
-    23: qr-32ea1402-bb: <BROADCAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default 
-        link/ether fa:16:3e:e2:d8:74 brd ff:ff:ff:ff:ff:ff
-        inet 10.99.0.1/24 brd 10.99.0.255 scope global qr-32ea1402-bb
-           valid_lft forever preferred_lft forever
-    24: qg-808b139c-45: <BROADCAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default 
-        link/ether fa:16:3e:ca:6f:eb brd ff:ff:ff:ff:ff:ff
-        inet 172.16.1.2/16 brd 172.16.255.255 scope global qg-808b139c-45
-           valid_lft forever preferred_lft forever
-
-
-    root@neutron-node:~# neutron port-list
-    +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------+
-    | id                                   | name | mac_address       | fixed_ips                                                                         |
-    +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------+
-    | 32ea1402-bb31-4575-8c14-06aea02d3442 |      | fa:16:3e:e2:d8:74 | {"subnet_id": "5d4c6c72-9cf8-4272-8cec-08bd04b4b1f4", "ip_address": "10.99.0.1"}  |
-    | 6b31e572-b5e7-49e6-94ab-0c1e78505ce9 |      | fa:16:3e:0d:5d:20 | {"subnet_id": "5d4c6c72-9cf8-4272-8cec-08bd04b4b1f4", "ip_address": "10.99.0.12"} |
-    | 808b139c-4598-4bf4-92b4-1a728aa0a21e |      | fa:16:3e:ca:6f:eb | {"subnet_id": "d7fc327b-8e04-43ce-bad4-98840b9b0927", "ip_address": "172.16.1.2"} |
-    +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------+
-    root@neutron-node:~# neutron subnet-list
-    +--------------------------------------+-------------+---------------+------------------------------------------------+
-    | id                                   | name        | cidr          | allocation_pools                               |
-    +--------------------------------------+-------------+---------------+------------------------------------------------+
-    | 5d4c6c72-9cf8-4272-8cec-08bd04b4b1f4 | demo-subnet | 10.99.0.0/24  | {"start": "10.99.0.2", "end": "10.99.0.254"}   |
-    | d7fc327b-8e04-43ce-bad4-98840b9b0927 | ext-subnet  | 172.16.0.0/16 | {"start": "172.16.1.1", "end": "172.16.1.254"} |
-    +--------------------------------------+-------------+---------------+------------------------------------------------+
-
-On the compute node instead::
-
-    root@compute-1:~# ovs-vsctl show
-    62f8b342-8afa-4ce4-aa98-e2ab671d2837
-        Bridge br-tun
-            Port "gre-0a000009"
-                Interface "gre-0a000009"
-                    type: gre
-                    options: {in_key=flow, local_ip="10.0.0.20", out_key=flow, remote_ip="10.0.0.9"}
-            Port br-tun
-                Interface br-tun
-                    type: internal
-            Port patch-int
-                Interface patch-int
-                    type: patch
-                    options: {peer=patch-tun}
-        Bridge br-int
-            fail_mode: secure
-            Port br-int
-                Interface br-int
-                    type: internal
-            Port "qvo6b31e572-b5"
-                tag: 3
-                Interface "qvo6b31e572-b5"
-            Port patch-tun
-                Interface patch-tun
-                    type: patch
-                    options: {peer=patch-int}
-        ovs_version: "2.0.1"
-
-    root@compute-1:~# brctl show
-    bridge name	        bridge id		STP enabled	interfaces
-    qbr6b31e572-b5		8000.8ed137166fb4	no		qvb6b31e572-b5
-    							                    tap6b31e572-b5
-    root@compute-1:~# virsh dumpxml 23|grep tap
-          <target dev='tap6b31e572-b5'/>
-
-To recap:
-
-* The VM has interface `tap6b31e572-b5`
-* `tap6b31e572-b5` interface is connected to the bridge
-  `qbr6b31e572-b5`
-* to bridge `qbr6b31e572-b5`, is also connected an OVS port
-  `qvb6b31e572-b5`
-* port `qvb6b31e572-b5` is connected ot the `br-int` OVS swith, and
-  belongs to `VLAN 3` (tenant isolation)
-* `br-int` switch is connected to `br-tun` switch using `patch-tun`
-  OVS internal connection
-* `br-tun` is connected to the `neutron-node` using a GRE tunnel, via
-  `gre-0a000009` OVS port.
-* On the neutron-node, `gre-0a000014` is the other endpoints of the
-  GRE tunnel
-* the `br-tun` switch on neutron-node is connected again to `br-int`
-* an interface `tap1ddd9f69-d9` is connected to `br-int` on the
-  neutron node
-* The interface `tap1ddd9f69-d9` only has an IP in the network
-  namespace of the dhcp (`qdhcp-29c861dd-9bf9-4a4e-a0b6-3de62fa33dd5`)
-* The interface `qr-32ea1402-bb` connected on the `br-int`, and the
-  interface `qg-808b139c-45` connected to the `br-ext` switch lives on
-  a separate namespace.
-* Routing happens on the router namespace, using standard linux routing.
-
-Floating IPs
-------------
-
-Let's now allocate a new floating IP::
-
-    root@neutron-node:~# neutron floatingip-create external-net
-    Created a new floatingip:
-    +---------------------+--------------------------------------+
-    | Field               | Value                                |
-    +---------------------+--------------------------------------+
-    | fixed_ip_address    |                                      |
-    | floating_ip_address | 172.16.1.4                           |
-    | floating_network_id | b09f88f7-be98-40e1-9911-d1127182de96 |
-    | id                  | 21d81167-1373-442b-85ad-b930f8223c17 |
-    | port_id             |                                      |
-    | router_id           |                                      |
-    | status              | DOWN                                 |
-    | tenant_id           | cacb2edc36a343c4b4747b8a8349371a     |
-    +---------------------+--------------------------------------+
-    root@neutron-node:~# nova floating-ip-associate test-2 172.16.1.4
-    root@neutron-node:~# nova list
-    +--------------------------------------+--------+--------+------------+-------------+---------------------------------+
-    | ID                                   | Name   | Status | Task State | Power State | Networks                        |
-    +--------------------------------------+--------+--------+------------+-------------+---------------------------------+
-    | ff57e37d-a5f3-4591-8655-1c7f535231f8 | test-2 | ACTIVE | -          | Running     | demo-net=10.99.0.12, 172.16.1.4 |
-    +--------------------------------------+--------+--------+------------+-------------+---------------------------------+
-
-As usual, if you want to check the firewall rules created to
-enforce security groups and floating IPs, you have to run the command
-inside the correct namespace::
-
-    root@neutron-node:~# ip netns exec qrouter-3616bd03-0100-4247-9699-2839e360a688 iptables -L -t nat
-    Chain PREROUTING (policy ACCEPT)
-    target     prot opt source               destination         
-    neutron-l3-agent-PREROUTING  all  --  anywhere             anywhere            
-
-    Chain INPUT (policy ACCEPT)
-    target     prot opt source               destination         
-
-    Chain OUTPUT (policy ACCEPT)
-    target     prot opt source               destination         
-    neutron-l3-agent-OUTPUT  all  --  anywhere             anywhere            
-
-    Chain POSTROUTING (policy ACCEPT)
-    target     prot opt source               destination         
-    neutron-l3-agent-POSTROUTING  all  --  anywhere             anywhere            
-    neutron-postrouting-bottom  all  --  anywhere             anywhere            
-
-    Chain neutron-l3-agent-OUTPUT (1 references)
-    target     prot opt source               destination         
-    DNAT       all  --  anywhere             172.16.1.4           to:10.99.0.12
-
-    Chain neutron-l3-agent-POSTROUTING (1 references)
-    target     prot opt source               destination         
-    ACCEPT     all  --  anywhere             anywhere             ! ctstate DNAT
-
-    Chain neutron-l3-agent-PREROUTING (1 references)
-    target     prot opt source               destination         
-    REDIRECT   tcp  --  anywhere             169.254.169.254      tcp dpt:http redir ports 9697
-    DNAT       all  --  anywhere             172.16.1.4           to:10.99.0.12
-
-    Chain neutron-l3-agent-float-snat (1 references)
-    target     prot opt source               destination         
-    SNAT       all  --  10.99.0.12           anywhere             to:172.16.1.4
-
-    Chain neutron-l3-agent-snat (1 references)
-    target     prot opt source               destination         
-    neutron-l3-agent-float-snat  all  --  anywhere             anywhere            
-    SNAT       all  --  10.99.0.0/24         anywhere             to:172.16.1.2
-
-    Chain neutron-postrouting-bottom (1 references)
-    target     prot opt source               destination         
-    neutron-l3-agent-snat  all  --  anywhere             anywhere            
-
-
-Now we should be able to connect to the VM from the physical node.
-
-
-
+`Next: life of a VM (Compute service) - nova-compute <nova_compute.rst>`_

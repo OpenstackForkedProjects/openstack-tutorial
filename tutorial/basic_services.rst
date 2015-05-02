@@ -43,33 +43,6 @@ Update the system (can take a while...)::
     root@db-nodes:# apt-get update -y
     root@db-nodes:# aptitude upgrade -y
 
-Install the NTP service::
-
-    root@db-nodes:# aptitude install -y ntp
-
-On a production environment, you may want to update ``/etc/ntp.conf``
-to point to a local server.
-
-
-all nodes installation
-~~~~~~~~~~~~~~~~~~~~~~
-
-Since those boring steps have to be completed on all the other nodes, we
-can run the following script in order to automate this process. This way
-the rest of the VMs will have all those steps already done by the time we are
-going to work on them. The following command has to run on the **physical machine**::
-
-    root@gks-NNN:[~] $ for host in auth-node image-node api-node \
-        network-node volume-node compute-1 compute-2 neutron-node
-    do
-    ssh -n root@$host "(apt-get update -y; apt-get upgrade -y; aptitude install -y ntp) >& /dev/null &"
-    done
-
-**Note:** Icehouse is in the main repository for Ubuntu 14.04. This
-means we don't need to add any additional OpenStack repositories. For
-info regarding OpenStack and Ubuntu Support Schedule go `here
-<https://wiki.ubuntu.com/ServerTeam/CloudArchive>`_.
-
 
 MySQL installation
 ++++++++++++++++++
@@ -221,7 +194,7 @@ In order to prevent this, create (or modify, if it's already there)
 the file ``/etc/rabbitmq/rabbitmq-env.conf`` and add the following
 line::
 
-    RABBITMQ_NODE_IP_ADDRESS=10.0.0.3
+    NODE_IP_ADDRESS=10.0.0.3
 
 Whenever you update this file, restart the daemon::
 
@@ -237,3 +210,12 @@ services need to create a MySQL account and database, you probably
 want to keep a shell opened on the `db-node`.
 
 `Next: Keystone - Identity service <keystone.rst>`_
+
+.. Indeed, guest can only access rabbitmq via localhost.
+   You should create a different user `openstack` with:
+
+       rabbitmqctl add_user openstack gridka
+
+   and then grant write permissions to /:
+
+       rabbitmqctl set_permissions -p / openstack '.*' '.*' '.*'

@@ -1,11 +1,8 @@
 Tutorial overview
 =================
 
-During this tutorial, each one of you will have access to two physical
-nodes.
-
-One of the nodes will run the 6 VMs hosting the **central services**. 
-They are called as follows:
+During this tutorial, each one of you will have access to an OpenStack
+private cloud and will create one instance per service:
 
 * ``db-node``:  runs *MySQL* and *RabbitMQ*
 
@@ -18,176 +15,216 @@ They are called as follows:
 * ``api-node``: runs most of the **nova** service: *nova-api*,
   *horizon*, *nova-scheduler*, *nova-conductor* and *nova-console*.
 
-* ``network-node``: runs the legacy network services:
-  *nova-network* and *nova-metadata*.
-
 * ``volume-node``: runs **cinder**, the volume manager, composed of
   the *cinder-api*, *cinder-scheduler* and *cinder-volume* services
 
-
-The other node will run 3 VMs hosting the **compute nodes** and the
-**neutron-node** for your stack.
-
-* ``compute-1``: runs *nova-compute*
-* ``compute-2``: runs *nova-compute*
 * ``neutron-node``: runs **neutron**, the NaaS manager. 
 
-The legacy ``nova-network`` service is going to be deprecated although 
-it isn't clear exactly when. Thus, on the last day we will install the 
-service which will become its de facto substitute. 
+* ``compute-1``: runs *nova-compute*
 
-How to access the physical nodes
-++++++++++++++++++++++++++++++++
+* ``compute-2``: runs *nova-compute*
 
-In order to access the different virtual machines and start working on
-the configuration of OpenStack services listed above you will have to
-first login on one of the nodes assigned to your group by doing::
+Preparing the virtual machines
+++++++++++++++++++++++++++++++
 
-        ssh ostack@gks-NNN.scc.kit.edu -p 24 -X
+Open the browser at http://cloud-test.gc3.uzh.ch and login using your
+UZH `WebPass` login and password. Each one of you will have a tenant
+on its own.
 
-where NNN is one of the numbers assigned to you. As user `ostack`, you
-can run `sudo` and become root.
+The next step is to create the networks we will need, and start the
+virtual machines.
 
-Physical machines are assigned as follow:
+In order, you will need to:
 
-+-----------------+------------------+---------------+
-| student         | central services | compute nodes |
-+=================+==================+===============+
-|Tolosa           |  gks-035         | gks-036       |
-+-----------------+------------------+---------------+
-|Stillings        |  gks-037         | gks-038       |
-+-----------------+------------------+---------------+
-|Paravac          |  gks-039         | gks-040       |
-+-----------------+------------------+---------------+
-|Park             |  gks-041         | gks-042       |
-+-----------------+------------------+---------------+
-|Dulov            |  gks-043         | gks-044       |
-+-----------------+------------------+---------------+
-|Lusiardi         |  gks-045         | gks-046       |
-+-----------------+------------------+---------------+
-|Spoo             |  gks-063         | gks-064       |
-+-----------------+------------------+---------------+
-|Vallero          |  gks-065         | gks-066       |
-+-----------------+------------------+---------------+
-|Bernardt         |  gks-067         | gks-068       |
-+-----------------+------------------+---------------+
-|Hofmann          |  gks-069         | gks-070       |
-+-----------------+------------------+---------------+
-|Laubis           |  gks-071         | gks-072       |
-+-----------------+------------------+---------------+
-|Kulkova          |  gks-073         | gks-074       |
-+-----------------+------------------+---------------+
-|Millar           |  gks-075         | gks-076       |
-+-----------------+------------------+---------------+
-|Nasim            |  gks-077         | gks-078       |
-+-----------------+------------------+---------------+
-|Straka           |  gks-079         | gks-080       |
-+-----------------+------------------+---------------+
-|Bianchi          |  gks-085         | gks-086       |
-+-----------------+------------------+---------------+
-|Gerard           |  gks-087         | gks-088       |
-+-----------------+------------------+---------------+
-|Schneider        |  gks-089         | gks-090       |
-+-----------------+------------------+---------------+
-|Saletta          |  gks-091         | gks-092       |
-+-----------------+------------------+---------------+
-|Siomos           |  gks-095         | gks-096       |
-+-----------------+------------------+---------------+
-|tutors           |  gks-061         | gks-062       |
-+-----------------+------------------+---------------+
-|                 |  gks-093         | gks-094       |
-+-----------------+------------------+---------------+
+* import a keypair, needed to access the virtual machines via ssh
 
+* create 2 networks:
+  - `internal`: each node will talk to the internal services using
+    this network.
 
-Virtual Machines
-++++++++++++++++
+* ensure the default security groups allow you to access via ssh
 
-The physical nodes already have the KVM virtual machines we will use
-for the tutorial. These are Ubuntu 14.04 LTS machines with very basic
-configuration, including the IP configuration and the correct hostname.
+* start the following virtual machines, using the image
+  `ubuntu-14.04-cloudarchive`:
+
+  * `db-node`, networks:
+    - vlan842
+    - internal
+
+  * `auth-node`, networks:
+    - vlan842
+    - internal
+
+  * `image-node`, networks:
+    - vlan842
+    - internal
+
+  * `api-node`, networks:
+    - vlan842
+    - internal
+
+  * `volume-node`, networks:
+    - vlan842
+    - internal
+
+  * `network-node`, networks:
+    - vlan842
+    - internal
+    
+  * `compute-1`, networks:
+    - vlan842
+    - internal
+    
+  * `compute-2`, networks:
+    - vlan842
+    - internal
+    
+The image `ubuntu-14.04-cloudarchive` is an Ubuntu 14.04.2
+Ubuntu 14.04 with a few services already configured:
+
+* ntp
+
+* proxy
+
+* repository for OpenStack Juno
 
 Start the Virtual Machines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can start and stop the VMs using the ``virt-manager`` graphical
-interface or the ``virsh`` command line tool.
+You can create the virtual machines either via web interface or, if
+you install on your laptop the following packages, also from the
+command line:
 
-All the VMs are initially stopped so the first exercise
-you have to do will be to start them all. Connect to both
-of the physical nodes and run::
+* python-novaclient
+* python-keystoneclient
+* python-cinderclient
+* python-neutronclient
+* python-glanceclient
 
-    virt-manager
+Assuming you already created the networks::
 
-Please note that each VM has its golden clone, called  **hostname-golden**. 
-They can be used to easily recreate a particular service or compute VM
-from scratch. Please **keep them OFF** and start the rest of the VMs. 
+    (cloud)(cred:tutorial)antonio@kenny:~$ nova net-list
+    +--------------------------------------+-------------+------+
+    | ID                                   | Label       | CIDR |
+    +--------------------------------------+-------------+------+
+    | 890bbbf3-8fcd-40e4-b0b3-c2a4c9c52e35 | internal    | None |
+    | 8cf2499c-4d99-4623-a482-a762bacd862d | vlan842     | None |
+    +--------------------------------------+-------------+------+
 
-However, if you prefer to use the ``virsh`` command line interface,
-run on one of the physical nodes the following commands::
+and you have a keypair named `antonio`, you can start the `db-node`
+with the following command::
 
-    root@gks-001:[~] $ virsh start db-node
-    root@gks-001:[~] $ virsh start auth-node
-    root@gks-001:[~] $ virsh start image-node
-    root@gks-001:[~] $ virsh start volume-node
-    root@gks-001:[~] $ virsh start api-node
-    root@gks-001:[~] $ virsh start network-node
+    (cloud)(cred:tutorial)antonio@kenny:~$ nova boot --key-name antonio --image ubuntu-14.04-cloudarchive --flavor m1.tiny --nic net-id=8cf2499c-4d99-4623-a482-a762bacd862d --nic net-id=890bbbf3-8fcd-40e4-b0b3-c2a4c9c52e35   db-node
+    +--------------------------------------+------------------------------------------------------------------+
+    | Property                             | Value                                                            |
+    +--------------------------------------+------------------------------------------------------------------+
+    | OS-DCF:diskConfig                    | MANUAL                                                           |
+    | OS-EXT-AZ:availability_zone          | nova                                                             |
+    | OS-EXT-STS:power_state               | 0                                                                |
+    | OS-EXT-STS:task_state                | scheduling                                                       |
+    | OS-EXT-STS:vm_state                  | building                                                         |
+    | OS-SRV-USG:launched_at               | -                                                                |
+    | OS-SRV-USG:terminated_at             | -                                                                |
+    | accessIPv4                           |                                                                  |
+    | accessIPv6                           |                                                                  |
+    | adminPass                            | 82sRSviCiR5u                                                     |
+    | config_drive                         |                                                                  |
+    | created                              | 2015-05-02T09:32:56Z                                             |
+    | flavor                               | m1.tiny (78342c00-6290-461e-8e56-357b59fbcf19)                   |
+    | hostId                               |                                                                  |
+    | id                                   | ebc906d3-cafb-4480-b165-8b35ae4774a0                             |
+    | image                                | ubuntu-14.04-cloudarchive (33805688-f142-4dc4-9865-6f4197bbd8ad) |
+    | key_name                             | antonio                                                          |
+    | metadata                             | {}                                                               |
+    | name                                 | db-node                                                          |
+    | os-extended-volumes:volumes_attached | []                                                               |
+    | progress                             | 0                                                                |
+    | security_groups                      | default                                                          |
+    | status                               | BUILD                                                            |
+    | tenant_id                            | 3b8231f6ab974adbbcd838042bbf63bd                                 |
+    | updated                              | 2015-05-02T09:32:56Z                                             |
+    | user_id                              | anmess                                                           |
+    +--------------------------------------+------------------------------------------------------------------+
 
-and on the *other* physical node::
-
-    root@gks-002:[~] $ virsh start compute-1
-    root@gks-002:[~] $ virsh start compute-2
-    root@gks-002:[~] $ virsh start neutron-node
 
 Access the Virtual Machines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can connect to them from each one of the physical machines (the
-**gks-NNN** ones) using **ssh** or by starting the ``virt-manager``
-program on the physical node hosting the virtual machine and then
-connecting to the console.
+If you setup the keypair properly, and you started the virtual machine
+with that keypair, you can login on the virtual machine using the IP
+address given in `vlan842` network.
 
-In order to connect using **ssh** please do::
+You can see the IP address of the VM via web interface or using `nova`
+command::
 
-     ssh root@hostname 
+    (cloud)(cred:tutorial)antonio@kenny:~$ nova list
+    +--------------------------------------+---------+--------+------------+-------------+------------------------------------------+
+    | ID                                   | Name    | Status | Task State | Power State | Networks                                 |
+    +--------------------------------------+---------+--------+------------+-------------+------------------------------------------+
+    | ebc906d3-cafb-4480-b165-8b35ae4774a0 | db-node | ACTIVE | -          | Running     | internal=10.0.0.13; vlan842=172.23.4.169 |
+    +--------------------------------------+---------+--------+------------+-------------+------------------------------------------+
 
-where **hostname** is one of those listed above. We recommed to use the
-**ssh** mode for accessing the hosts because it will easy your interaction
-with the VM and provide more suitable interface in case you want to
-copy/paste some of the commands in the tutorial. 
+you should be able to connect either using regular user `gc3-user` or
+as `root`::
 
-All the Virtual Machines have the same password: **user@gridka**
+    (cloud)(cred:tutorial)antonio@kenny:~$ ssh root@172.23.4.169
+    Warning: Permanently added '172.23.4.169' (ECDSA) to the list of known hosts.
+    Welcome to Ubuntu 14.04.2 LTS (GNU/Linux 3.13.0-32-generic x86_64)
+
+     * Documentation:  https://help.ubuntu.com/
+    root@db-node:~# 
+
 
 Network Setup
 +++++++++++++
 
-Each virtual machine has 2 network interfaces, with the exception of
-the **network-node** and **neutron-node** that have 3. Some of these
-interfaces have been already configured, so that you can already
-connect to them using either the "*public*" or the private ip address.
+**IMPORTANT NOTE**: each virtual machine has an interface in
+`vlan842`. This is the only OpenStack network that is connected to a
+*real* network, and thus is the only network we can use to connect to
+the virtual machines. 
 
-These are the networks we are going to use:
+It is also the network we will use as `public` network (for floating
+IPs, and to give access to the VMs we will create on `compute-1` and
+`compute-2`).
 
-+------+-----------------------+------------------+
-| eth0 | internal network      | 10.0.0.0/24      |
-+------+-----------------------+------------------+
-| eth1 | public network        | 172.16.0.0/16    |
-+------+-----------------------+------------------+
-| eth2 | Openstack private     |                  |
-|      | network (present only |                  |
-|      | on the network-node)  |                  |
-+------+-----------------------+------------------+
+In a real-world installation, only the nodes facing the internet will
+have an interface on a public network. Specifically:
+
++--------------+---------------------------------+
+| node         | service requiring public access |
++==============+=================================+
+| api-node     | nova-api                        |
++--------------+---------------------------------+
+| volume-node  | cinder-api                      |
++--------------+---------------------------------+
+| image-node   | glance-api                      |
++--------------+---------------------------------+
+| auth-node    | keystone                        |
++--------------+---------------------------------+
+| network-node | neutron-api + NAT               |
++--------------+---------------------------------+
+
+
+This is the list of networks we will use:
+
++------+-----------------------+-------------------------------------------------+
+| eth0 | vlan842               | 172.23.0.0/16 for VMs, automatically assigned   |
+|      |                       | range 172.23.99.0/24 used for floating IPs      |
++------+-----------------------+-------------------------------------------------+
+| eth1 | internal network      | 10.0.0.0/24                                     |
++------+-----------------------+-------------------------------------------------+
+
+
+The *vlan842* is the network exposed to the UZH network. We will use
+it to access the VMs, that always have an IP in range
+172.23.4.0-172.23.10.254, automatically assigned by the `cloud-test`
+OpenStack, and on the network node we will also use the range
+172.23.99.0/24 for floating IPs that will be assigned to the VMs we
+create in your test cloud.
 
 The *internal network* is a trusted network used by all the OpenStack
 services to communicate to each other. Usually, you wouldn't setup a
-strict firewall on this ip address. In our case, the physical machine
-hosting the virtual machines also have an IP in this network, in order
-to be able to connect to the VMs from the physical node.
-
-The *public network* is the network exposed to the Internet. In our
-case we are using a non-routable IP range because of the constraints
-imposed by the tutorial setup, but on a production environment you
-will use public ip addresses instead and will setup a firewall in
-order to only allow connection on specific ports.
+strict firewall on this ip address.
 
 The *OpenStack private network* is the internal network of the
 OpenStack virtual machines. The virtual machines need to communicate
@@ -207,42 +244,22 @@ machines and of the virtual machines running in it:
 
 .. image:: ../images/network_diagram.png
 
-The IP addresses of these machines are:
+Since we are using DHCP for both external network `vlan842` and the
+`internal` networks, you should configure the ``/etc/hosts`` file on
+all of your virtual machines in order to be able to connect to them
+using only the hostname.
 
-+--------------+--------------+-----------+--------------------------+------------+
-| host         | private      | private   | public hostname          | public     |
-|              | hostname     | IP        |                          | IP         |
-+==============+==============+===========+==========================+============+
-| db node      | db-node      | 10.0.0.3  | db-node.example.org      | 172.16.0.3 |
-+--------------+--------------+-----------+--------------------------+------------+
-| auth node    | auth-node    | 10.0.0.4  | auth-node.example.org    | 172.16.0.4 |
-+--------------+--------------+-----------+--------------------------+------------+
-| image node   | image-node   | 10.0.0.5  | image-node.example.org   | 172.16.0.5 |
-+--------------+--------------+-----------+--------------------------+------------+
-| api node     | api-node     | 10.0.0.6  | api-node.example.org     | 172.16.0.6 |
-+--------------+--------------+-----------+--------------------------+------------+
-| network node | network-node | 10.0.0.7  | network-node.example.org | 172.16.0.7 |
-+--------------+--------------+-----------+--------------------------+------------+
-| volume node  | volume-node  | 10.0.0.8  | volume-node.example.org  | 172.16.0.8 |
-+--------------+--------------+-----------+--------------------------+------------+
-| neutron node | neutron-node | 10.0.0.9  | neutron-node.example.org | 172.16.0.9 |
-+--------------+--------------+-----------+--------------------------+------------+
-| compute-1    | compute-1    | 10.0.0.20 |                          |            |
-+--------------+--------------+-----------+--------------------------+------------+
-| compute-2    | compute-2    | 10.0.0.21 |                          |            |
-+--------------+--------------+-----------+--------------------------+------------+
+After you started all of your virtual machines, you could do something
+like::
 
-Both private and public hostnames are present in the ``/etc/hosts`` of
-the physical machines, in order to allow you to connect to them using
-the hostname instead of the IP addresses.
+    (cloud)(cred:tutorial)antonio@kenny:~$ IPS=$(nova list --fields name,networks | grep vlan842|sed 's/.*vlan842=\(172.23.[0-9]\+\.[0-9]\+\).*/\1/g')
+    (cloud)(cred:tutorial)antonio@kenny:~$ for ip in $IPS; do echo "$ip $(ssh  root@${ip} hostname).example.org" >> /tmp/hosts; done
+    (cloud)(cred:tutorial)antonio@kenny:~$ for ip in $IPS; do priv=$(ssh root@$ip 'ifconfig eth1 | grep "inet addr" | sed "s/.*addr:\(10.0.0.[0-9]\+\).*/\1/g"'); host=$(ssh root@$ip hostname); echo "$priv $host" >> /tmp/hosts; done
 
-Please note that the network node needs one more network interface
-that will be completely managed by the **nova-network** service, and
-is thus left unconfigured at the beginning.
+Then, add this file to ``/etc/hosts`` on all the machines::
 
-On the compute node, moreover, we will need to manually create a
-*bridge* which will allow the OpenStack virtual machines to access the
-network which connects the two physical nodes.
+    (cloud)(cred:tutorial)antonio@kenny:~$ for ip in $IPS; do cat /tmp/hosts | ssh root@$ip 'cat >> /etc/hosts'; done
+
 
 `Next: Installation of basic services <basic_services.rst>`_
 

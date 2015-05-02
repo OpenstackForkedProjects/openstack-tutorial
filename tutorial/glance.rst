@@ -43,9 +43,11 @@ On the **db-node** create the database and the MySQL user::
     root@db-node:~# mysql -u root -p
     mysql> CREATE DATABASE glance;
     mysql> GRANT ALL ON glance.* TO 'glance'@'%' IDENTIFIED BY 'gridka';
-    mysql> GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY 'gridka';
     mysql> FLUSH PRIVILEGES;
     mysql> exit;
+
+    ..
+       mysql> GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY 'gridka';
 
 On the **auth-node** instead we need to create an **image** service
 and an endpoint associated with it. The following commands assume you
@@ -93,7 +95,7 @@ and the related endpoint::
     root@auth-node:~# keystone endpoint-create --region RegionOne \
         --publicurl 'http://image-node.example.org:9292/v2' \
         --adminurl 'http://image-node.example.org:9292/v2' \
-        --internalurl 'http://10.0.0.5:9292/v2' \
+        --internalurl 'http://image-node:9292/v2' \
         --region RegionOne --service glance
     +-------------+---------------------------------------+
     |   Property  |                 Value                 |
@@ -124,7 +126,7 @@ files and change it to (if it's not there, add it to the section)::
 
     [database]
     ...
-    connection = mysql://glance:gridka@10.0.0.3/glance
+    connection = mysql://glance:gridka@db-node/glance
 
 The Image Service has to be configured to use the message broker. Configuration
 information is stored in ``/etc/glance/glance-api.conf``. Please open the file 
@@ -133,7 +135,7 @@ and change as follows in the ``[DEFAULT] section``::
      [DEFAULT]
      ...
      rpc_backend = rabbit
-     rabbit_host = 10.0.0.3
+     rabbit_host = db-node
      rabbit_password = gridka
 
 .. NOTE: I don't think glance is sending notifications at all, as they
@@ -149,16 +151,18 @@ pass through the public API. However, if you define this and set the
 notifications for image creation/deletion.
 
 Also, we need to adjust the ``[keystone_authtoken]`` section so that
-it matches the values we used when we created the keystone **glance**
-user in both in ``glance-api.conf`` and ``glance-registry.conf``::
+it matches the values we used when we created the keystone **glance**.
+
+On both files,  ``glance-api.conf`` and
+``glance-registry.conf``, ensure the following are set::
 
     [keystone_authtoken]
-    auth_host = 10.0.0.4
-    auth_port = 35357
-    auth_protocol = http
+    auth_url = http://auth-node.example.org:35357/v2.0
+    identity_uri = http://auth-node.example.org:35357
     admin_tenant_name = service
     admin_user = glance
     admin_password = gridka
+
 
 Finally, we need to specify which paste pipeline we are using. We are not
 entering into details here, just check that the following option is present again
@@ -205,7 +209,10 @@ Testing glance
 
 First of all, let's download a very small test image::
 
-    root@image-node:~# wget https://launchpad.net/cirros/trunk/0.3.0/+download/cirros-0.3.0-x86_64-disk.img
+    root@image-node:~# http_proxy=http://proxy.uzh.ch:3128 wget http://download.cirros-cloud.net/0.3.3/cirros-0.3.3-x86_64-disk.img
+
+(note: from these virtual machines, you have to set the proxy in order
+to download anything from the internet)
 
 .. Note that if the --os-endpoint-type is not specified glance will try to use 
    publicurl and if the image-node.example.org is not in /etc/hosts an error 
@@ -216,8 +223,8 @@ First of all, let's download a very small test image::
 
 The command line tool to manage images is ``glance``. Uploading an image is easy::
 
-    root@image-node:~# glance image-create --name cirros-0.3.0 --is-public=true \
-      --container-format=bare --disk-format=qcow2 --file cirros-0.3.0-x86_64-disk.img 
+    root@image-node:~# glance image-create --name cirros-0.3.3 --is-public=true \
+      --container-format=bare --disk-format=qcow2 --file cirros-0.3.3-x86_64-disk.img 
     +------------------+--------------------------------------+
     | Property         | Value                                |
     +------------------+--------------------------------------+
@@ -231,7 +238,7 @@ The command line tool to manage images is ``glance``. Uploading an image is easy
     | is_public        | True                                 |
     | min_disk         | 0                                    |
     | min_ram          | 0                                    |
-    | name             | cirros-0.3.0                         |
+    | name             | cirros-0.3.3                         |
     | owner            | c5709d092e3a46b6b895d31f90593640     |
     | protected        | False                                |
     | size             | 9761280                              |
@@ -264,7 +271,7 @@ uploaded on the image store::
     +--------------------------------------+--------------+-------------+------------------+---------+--------+
     | ID                                   | Name         | Disk Format | Container Format | Size    | Status |
     +--------------------------------------+--------------+-------------+------------------+---------+--------+
-    | 79af6953-6bde-463d-8c02-f10aca227ef4 | cirros-0.3.0 | qcow2       | bare             | 9761280 | active |
+    | 79af6953-6bde-463d-8c02-f10aca227ef4 | cirros-0.3.3 | qcow2       | bare             | 9761280 | active |
     +--------------------------------------+--------------+-------------+------------------+---------+--------+
 
 The cirros image we uploaded before, having an image id of

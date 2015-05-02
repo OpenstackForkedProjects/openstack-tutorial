@@ -27,7 +27,7 @@ First move to the **db-node** and create the database::
     
     mysql> CREATE DATABASE nova;
     mysql> GRANT ALL ON nova.* TO 'nova'@'%' IDENTIFIED BY 'gridka';
-    mysql> FLUSH PRIVILEGES;
+    mysql> FLUSH PRIVILEGES; 
     mysql> exit
 
 
@@ -80,7 +80,7 @@ and its endpoint::
     root@auth-node:~# keystone endpoint-create --region RegionOne \
       --publicurl 'http://api-node.example.org:8774/v2/$(tenant_id)s' \
       --adminurl 'http://api-node.example.org:8774/v2/$(tenant_id)s' \
-      --internalurl 'http://10.0.0.6:8774/v2/$(tenant_id)s' \
+      --internalurl 'http://api-node:8774/v2/$(tenant_id)s' \
       --service nova
     +-------------+---------------------------------------------------+
     |   Property  |                       Value                       |
@@ -111,7 +111,7 @@ and its endpoint::
     root@auth-node:~# keystone endpoint-create --region RegionOne \
       --publicurl 'http://api-node.example.org:8773/services/Cloud' \
       --adminurl 'http://api-node.example.org:8773/services/Admin' \
-      --internalurl 'http://10.0.0.6:8773/services/Cloud' \
+      --internalurl 'http://api-node:8773/services/Cloud' \
       --service ec2
     +-------------+-------------------------------------------------+
     |   Property  |                      Value                      |
@@ -140,7 +140,7 @@ MySQL, RabbitMQ nad Keystone options.
 In ``/etc/nova/nova.conf`` add a ``[database]`` section::
 
     [database]
-    connection = mysql://nova:gridka@10.0.0.3/nova
+    connection = mysql://nova:gridka@db-node/nova
 
 In ``[DEFAULT]`` section, update RabbitMQ configuration options::
 
@@ -150,6 +150,8 @@ In ``[DEFAULT]`` section, update RabbitMQ configuration options::
     rabbit_host = 10.0.0.3
     rabbit_password = gridka
 
+.. also rabbit_userid
+
 For keystone integration, ensure ``auth_strategy`` option is set in
 ``[DEFAULT]`` section, and add a ``[keystone_authtoken]`` section::
 
@@ -158,10 +160,7 @@ For keystone integration, ensure ``auth_strategy`` option is set in
     auth_strategy = keystone
 
     [keystone_authtoken]
-    auth_uri = http://10.0.0.4:5000
-    auth_host = 10.0.0.4
-    auth_port = 35357
-    auth_protocol = http
+    identity_uri = http://auth-node:35357
     admin_tenant_name = service
     admin_user = nova
     admin_password = gridka
@@ -178,9 +177,8 @@ Finally, a few options related to vnc display need to be changed in
 Also, since we want to contact the glance server using the management
 network, we will also update option ``glance_api_servers``::
 
-    [DEFAULT]
-    ...
-    glance_api_servers=10.0.0.5:9292
+    [glance]
+    api_servers=image-node:9292
 
 ..
    ::
@@ -302,6 +300,34 @@ instances, volumes etc, but we need to complete the OpenStack
 installation in order to test it.
 
 
+Nova and neutron
+----------------
+
+In case you are using neutron (as we are, in this tutorial), you also
+need to specify a few more configuration options in
+``/etc/nova/nova.conf``::
+
+    [DEFAULT]
+    # ...
+    network_api_class = nova.network.neutronv2.api.API
+    linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
+    firewall_driver = nova.virt.firewall.NoopFirewallDriver
+    security_group_api = neutron
+
+    [neutron]
+    # It is fine to have Noop here, because this is the *nova*
+    # firewall. Neutron is responsible of configuring the firewall and its
+    # configuration is stored in /etc/neutron/neutron.conf
+    url = http://network-node:9696
+    auth_strategy = keystone
+    admin_tenant_name = service
+    admin_username = neutron
+    admin_password = gridka
+    admin_auth_url = http://auth-node:35357/v2.0
+
+As usual, remember to restart the services after the configuration has
+been performed.
+
 Horizon
 -------
 
@@ -314,8 +340,9 @@ update the ``OPENSTACK_HOST`` variable::
 
     OPENSTACK_HOST = "auth-node.example.org"
 
-From the **physical node** you can connect to the api-node node by
-opening the URL ``http://172.16.0.6/horizon`` on your web browser
+Now, you should be able to connect to the api-node node by opening the
+URL ``http://172.23.4.176/horizon`` (replace with the ip in vlan842 of
+your api-node) on your web browser
 
 
 ..
@@ -414,4 +441,4 @@ access/secret keys and endpoint url::
     root@api-node:~# export EC2_URL=http://api-node.example.org:8773/services/Cloud
 
 
-`Next: nova-network - Network service - *easy* version <nova_network.rst>`_
+`Next: neutron - Network service - *complex* version <neutron.rst>`_

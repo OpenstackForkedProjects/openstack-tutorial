@@ -69,10 +69,12 @@ and password for the keystone service::
 
     root@db-node:~# mysql -u root -p
     mysql> CREATE DATABASE keystone;
-    mysql> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY 'gridka';
     mysql> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY 'gridka';
     mysql> FLUSH PRIVILEGES;
     mysql> exit
+
+    ..
+       mysql> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY 'gridka';
 
 Please note that almost every OpenStack service will need a private
 database, which means that we are going to run commands similar to the
@@ -107,7 +109,7 @@ is::
 
 So in our case you need to replace the default option with::
 
-    connection = mysql://keystone:gridka@10.0.0.3/keystone
+    connection = mysql://keystone:gridka@db-node/keystone
 
 Now you are ready to bootstrap the keystone database using the
 following command::
@@ -128,13 +130,14 @@ Keystone by default listens to two different ports::
     [...]
 
 
-**NOTE:** At the time of writing (01-08-2014), in Ubuntu 14.40
-keystone does not write to the log file in
-``/var/log/keystone/keystone.log``. In order to enable logging, ensure
-the following configuration option is defined in
-``/etc/keystone/keystone.conf``::
+..
+   **NOTE:** At the time of writing (01-08-2014), in Ubuntu 14.40
+   keystone does not write to the log file in
+   ``/var/log/keystone/keystone.log``. In order to enable logging, ensure
+   the following configuration option is defined in
+   ``/etc/keystone/keystone.conf``::
 
-    log_file = /var/log/keystone/keystone.log
+       log_file = /var/log/keystone/keystone.log
 
 By default, only CRITICAL, ERROR and WARNING messages are logged. To
 also log INFO messages, add option::
@@ -253,7 +256,16 @@ Assign administrative roles to the admin and _member_ users::
 
     root@auth-node:~# keystone user-role-add --user=admin --role=admin --tenant=admin
 
-Note that the command does not print any confirmation on successful completion. 
+Note that the command does not print any confirmation on successful
+completion, so you have to check it using ``user-role-list`` command::
+
+    root@auth-node:~# keystone user-role-list --user admin --tenant admin
+    +----------------------------------+----------+----------------------------------+----------------------------------+
+    |                id                |   name   |             user_id              |            tenant_id             |
+    +----------------------------------+----------+----------------------------------+----------------------------------+
+    | 9fe2ff9ee4384b1894a90878d3e92bab | _member_ | bdeb81f4719f42c2b49b900e8ce3c16c | 972a2861616c43c5b39975d3c5cd51b2 |
+    | 6dad267b549f4126bfb82c7520cb2f31 |  admin   | bdeb81f4719f42c2b49b900e8ce3c16c | 972a2861616c43c5b39975d3c5cd51b2 |
+    +----------------------------------+----------+----------------------------------+----------------------------------+
 
 
 Creation of the endpoint
@@ -290,7 +302,7 @@ service::
       root@auth-node:~# keystone endpoint-create \
       --publicurl http://auth-node.example.org:5000/v2.0 \
       --adminurl http://auth-node.example.org:35357/v2.0 \
-      --internalurl http://10.0.0.4:5000/v2.0 \
+      --internalurl http://auth-node:5000/v2.0 \
       --region RegionOne --service keystone
       +-------------+----------------------------------------+
       |   Property  |                 Value                  |

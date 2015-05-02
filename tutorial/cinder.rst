@@ -76,7 +76,6 @@ On the **db-node** create the database and the MySQL user::
     root@db-node:~# mysql -u root -p
     mysql> CREATE DATABASE cinder;
     mysql> GRANT ALL ON cinder.* TO 'cinder'@'%' IDENTIFIED BY 'gridka';
-    mysql> GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'%' IDENTIFIED BY 'gridka';
     mysql> FLUSH PRIVILEGES;
     mysql> exit
 
@@ -125,7 +124,7 @@ and the related endpoint, using the service id we just got::
     root@auth-node:~# keystone endpoint-create --region RegionOne \
       --publicurl 'http://volume-node.example.org:8776/v1/$(tenant_id)s' \
       --adminurl 'http://volume-node.example.org:8776/v1/$(tenant_id)s' \
-      --internalurl 'http://10.0.0.8:8776/v1/$(tenant_id)s' \
+      --internalurl 'http://volume-node:8776/v1/$(tenant_id)s' \
       --region RegionOne --service cinder
 
     +-------------+------------------------------------------------------+
@@ -138,6 +137,40 @@ and the related endpoint, using the service id we just got::
     |    region   |                      RegionOne                       |
     |  service_id |           9196c7e637f04e26b9246ee6116dd21c           |
     +-------------+------------------------------------------------------+
+
+..
+   We also need to create a service for cinder version 2, so::
+
+       root@auth-node:~# keystone service-create --type volumev2 \
+           --description "OpenStack Block Storage" --name cinderv2
+       +-------------+----------------------------------+
+       |   Property  |              Value               |
+       +-------------+----------------------------------+
+       | description |     OpenStack Block Storage      |
+       |   enabled   |               True               |
+       |      id     | 05b2f4f3940942aca196c76236e720db |
+       |     name    |             volumev2             |
+       |     type    |             volumev2             |
+       +-------------+----------------------------------+
+
+   and its endpoint::
+
+       root@auth-node:~# keystone endpoint-create \
+         --service cinderv2 \
+         --publicurl 'http://volume-node.example.org:8776/v2/%(tenant_id)s' \
+         --internalurl 'http://volume-node.example.org:8776/v2/%(tenant_id)s' \
+         --adminurl 'http://volume-node:8776/v2/%(tenant_id)s' \
+         --region RegionOne
+       +-------------+------------------------------------------------------+
+       |   Property  |                        Value                         |
+       +-------------+------------------------------------------------------+
+       |   adminurl  |       http://volume-node:8776/v2/%(tenant_id)s       |
+       |      id     |           8d7bc71cf84648b693e4eaad1e8e4a67           |
+       | internalurl | http://volume-node.example.org:8776/v2/%(tenant_id)s |
+       |  publicurl  | http://volume-node.example.org:8776/v2/%(tenant_id)s |
+       |    region   |                      RegionOne                       |
+       |  service_id |           05b2f4f3940942aca196c76236e720db           |
+       +-------------+------------------------------------------------------+
 
 Please note that the URLs need to be quoted using the (') character
 (single quote) otherwise the shell will interpret the dollar sign ($)
@@ -154,6 +187,41 @@ We should now have three endpoints on keystone::
     | e1080682380d4f90bfa7016916c40d91 | RegionOne |        http://image-node.example.org:9292/v2         |        http://10.0.0.5:9292/v2        |        http://image-node.example.org:9292/v2         | 6cb0cf7a81bc4489a344858398d40222 |
     +----------------------------------+-----------+------------------------------------------------------+---------------------------------------+------------------------------------------------------+----------------------------------+
 
+Add a volume to volume-node instance
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can do this via web interface
+
+::
+    (cloud)(cred:tutorial)antonio@kenny:~$ nova volume-create --display-name cinder 100
+    +---------------------+--------------------------------------+
+    | Property            | Value                                |
+    +---------------------+--------------------------------------+
+    | attachments         | []                                   |
+    | availability_zone   | nova                                 |
+    | bootable            | false                                |
+    | created_at          | 2015-05-02T17:51:39.022417           |
+    | display_description | -                                    |
+    | display_name        | cinder                               |
+    | encrypted           | False                                |
+    | id                  | e539ddc6-f31f-406a-b534-6fc2af1c231a |
+    | metadata            | {}                                   |
+    | size                | 100                                  |
+    | snapshot_id         | -                                    |
+    | source_volid        | -                                    |
+    | status              | creating                             |
+    | volume_type         | None                                 |
+    +---------------------+--------------------------------------+
+
+    (cloud)(cred:tutorial)antonio@kenny:~$ nova volume-attach volume-node e539ddc6-f31f-406a-b534-6fc2af1c231a
+    +----------+--------------------------------------+
+    | Property | Value                                |
+    +----------+--------------------------------------+
+    | device   | /dev/vdb                             |
+    | id       | e539ddc6-f31f-406a-b534-6fc2af1c231a |
+    | serverId | d4b8678e-e5d4-462c-89bb-ee0278cf70be |
+    | volumeId | e539ddc6-f31f-406a-b534-6fc2af1c231a |
+    +----------+--------------------------------------+
 
 basic configuration
 ~~~~~~~~~~~~~~~~~~~
@@ -172,6 +240,9 @@ We will configure cinder in order to create volumes using LVM, but in
 order to do that we have to provide a volume group called
 ``cinder-volume`` (you can use a different name, but you have to
 update the cinder configuration file).
+
+At this point, you should create a volume in `cloud-test` and attach
+it to the **volume-node** machine...
 
 The **volume-node** machine has one more disk (``/dev/vdb``) which
 we will use for LVM. You can either partition this disk and use those
@@ -244,10 +315,13 @@ and RabbitMQ, as usual. Update the section ``[DEFAULT]`` and add
 
     [DEFAULT]
     [...]
-    sql_connection = mysql://cinder:gridka@10.0.0.3/cinder
+    sql_connection = mysql://cinder:gridka@db-node/cinder
     rpc_backend = cinder.openstack.common.rpc.impl_kombu
-    rabbit_host = 10.0.0.3
+    rabbit_host = db-node
     rabbit_password = gridka
+
+.. also needed 
+   rabbit_userid = openstack
 
 Default values for all the other options should be fine. Please note
 that here you can change the name of the LVM volume group to use, and
@@ -271,10 +345,7 @@ a different network for this kind of traffic.
 Finally, let's add a section for `keystone` authentication::
 
     [keystone_authtoken]
-    auth_uri = http://10.0.0.4:5000
-    auth_host = 10.0.0.4
-    auth_port = 35357
-    auth_protocol = http
+    identity_uri = http://auth-node:35357
     admin_tenant_name = service
     admin_user = cinder
     admin_password = gridka
@@ -338,6 +409,8 @@ Test cinder by creating a volume::
     |     volume_type     |                 None                 |
     +---------------------+--------------------------------------+
 
+**NOTE**: at this point, you will probably get an error. Please, check
+the logs and try to find out what the problem is, and how to solve it.
 
 Shortly after, a ``cinder list`` command should show you the newly
 created volume::
