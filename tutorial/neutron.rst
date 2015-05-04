@@ -185,7 +185,7 @@ create a shared secret that will be shared between the `nova-api`
 service and the `metadata-agent`::
 
     [DEFAULT]
-    auth_url = http://10.0.0.4:5000/v2.0
+    auth_url = http://auth-node:5000/v2.0
     auth_region = RegionOne
     admin_tenant_name = service
     admin_user = neutron
