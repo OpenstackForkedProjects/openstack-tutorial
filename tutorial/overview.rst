@@ -38,9 +38,9 @@ In order, you will need to:
 
 * import a keypair, needed to access the virtual machines via ssh
 
-* create 2 networks:
+* create 1 internal networks:
   - `internal`: each node will talk to the internal services using
-    this network.
+    this network. Enable DHCP and choose the IP range you like.
 
 * ensure the default security groups allow you to access via ssh
 
@@ -84,9 +84,11 @@ Ubuntu 14.04 with a few services already configured:
 
 * ntp
 
-* proxy
+* proxy (vlan842 network is a routable network, but cannot access the
+  internet)
 
 * repository for OpenStack Juno
+
 
 Start the Virtual Machines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
