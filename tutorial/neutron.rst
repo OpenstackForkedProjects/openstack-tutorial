@@ -273,77 +273,73 @@ If not, create one with the following command::
 
     root@network-node:~# ovs-vsctl add-br br-int
 
-..
-   Then, we need a bridge for external traffic::
 
-       root@network-node:~# ovs-vsctl add-br br-ex
+Then, we need a bridge for external traffic::
 
-   Now it gets a bit tricky for us. Ideally, you would have two network
-   interfaces, one used to access the network node using the public IP,
-   and the other connected to all the public networks you want to make
-   available for your VMs.
+    root@network-node:~# ovs-vsctl add-br br-ex
 
-   However, because of the limitations in OpenStack (VMs can only have
-   one interface per network) and the filters OpenStack put in place to
-   prevent spoofing and other nasty hacks, we have to:
+Now it gets a bit tricky for us. Ideally, you would have two network
+interfaces, one used to access the network node using the public IP,
+and the other connected to all the public networks you want to make
+available for your VMs.
 
-   * attach the `eth0` network interface to `br-ex`
-   * give the ip of `eth0` to `br-ex`
-   * swap the mac addresses of `br-ex` and `eth0`
+However, because of the limitations in OpenStack (VMs can only have
+one interface per network) and the filters OpenStack put in place to
+prevent spoofing and other nasty hacks, we have to:
 
-   In order to do that you will need to connect to the VM from one of the
-   internal nodes, since otherwise you will kick yourself out::
+* attach the `eth0` network interface to `br-ex`
+* give the ip of `eth0` to `br-ex`
+* swap the mac addresses of `br-ex` and `eth0`
 
-       root@api-node:~# ssh network-node
-       Welcome to Ubuntu 14.04.2 LTS (GNU/Linux 3.13.0-32-generic x86_64)
+In order to do that you will need to connect to the VM from one of the
+internal nodes, since otherwise you will kick yourself out::
 
-        * Documentation:  https://help.ubuntu.com/
-       root@network-node:~# ip a show dev eth0
-       2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc pfifo_fast state UP group default qlen 1000
-           link/ether fa:16:3e:7d:f4:99 brd ff:ff:ff:ff:ff:ff
-           inet 172.23.4.179/16 brd 172.23.255.255 scope global eth0
-              valid_lft forever preferred_lft forever
-           inet6 fe80::f816:3eff:fe7d:f499/64 scope link 
-              valid_lft forever preferred_lft forever
-       root@network-node:~# ip link show dev br-ex
-       7: br-ex: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN mode DEFAULT group default 
-           link/ether e6:a0:2c:ce:1f:46 brd ff:ff:ff:ff:ff:ff
-       root@network-node:~# ip link show dev eth0
-       2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
-           link/ether fa:16:3e:7d:f4:99 brd ff:ff:ff:ff:ff:ff
-       root@network-node:~# ovs-vsctl add-port br-ex eth0
-       root@network-node:~# ifconfig br-ex 172.23.4.179/16
-       root@network-node:~# ifconfig eth0 0.0.0.0
-       root@network-node:~# ifconfig eth0 promisc
-       root@network-node:~# ifconfig br-ex hw ether fa:16:3e:7d:f4:99
-       root@network-node:~# ifconfig eth0 hw ether e6:a0:2c:ce:1f:46
-       root@network-node:~# route add default gw 172.23.0.1
+    root@api-node:~# ssh network-node
+    Welcome to Ubuntu 14.04.2 LTS (GNU/Linux 3.13.0-32-generic x86_64)
 
-   **IMPORTANT**: if you reboot this machine now, you will not be able to
-   connect to it again. While adding the `eth0` interface to `br-ex`
-   bridge is *preserved* after a reboot, setting the IP and the mac
-   address is not. You should update ``/etc/network/interfaces`` file to
-   preserve these settings, but this is out of the scope if this tutorial.
+     * Documentation:  https://help.ubuntu.com/
+    root@network-node:~# ip a show dev eth0
+    2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc pfifo_fast state UP group default qlen 1000
+        link/ether fa:16:3e:7d:f4:99 brd ff:ff:ff:ff:ff:ff
+        inet 172.23.4.179/16 brd 172.23.255.255 scope global eth0
+           valid_lft forever preferred_lft forever
+        inet6 fe80::f816:3eff:fe7d:f499/64 scope link 
+           valid_lft forever preferred_lft forever
+    root@network-node:~# ip link show dev br-ex
+    7: br-ex: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN mode DEFAULT group default 
+        link/ether e6:a0:2c:ce:1f:46 brd ff:ff:ff:ff:ff:ff
+    root@network-node:~# ip link show dev eth0
+    2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
+        link/ether fa:16:3e:7d:f4:99 brd ff:ff:ff:ff:ff:ff
+    root@network-node:~# ovs-vsctl add-port br-ex eth0
+    root@network-node:~# ifconfig br-ex 172.23.4.179/16
+    root@network-node:~# ifconfig eth0 0.0.0.0
+    root@network-node:~# ovs-vsctl set bridge br-ex other-config:hwaddr=fa:16:3e:7d:f4:99
+    root@network-node:~# ifconfig eth0 hw ether e6:a0:2c:ce:1f:46
+    root@network-node:~# route add default gw 172.23.0.1
 
-   Also, whenever we create routers and ports, it might be possible that
-   the mac address of `br-ex` is changed back to the original one.
+**IMPORTANT**: if you reboot this machine now, you will not be able to
+connect to it again. While adding the `eth0` interface to `br-ex`
+bridge is *preserved* after a reboot, setting the IP and the mac
+address is not. You should update ``/etc/network/interfaces`` file to
+preserve these settings, but this is out of the scope if this tutorial.
 
-   After this, the openvswitch configuration should look like::
+After this, the openvswitch configuration should look like::
 
-       root@network-node:~# ovs-vsctl show
-       1a05c398-3024-493f-b3c4-a01912688ba4
-           Bridge br-ex
-               Port br-ex
-                   Interface br-ex
-                       type: internal
-               Port "eth0"
-                   Interface "eth0"
-           Bridge br-int
-               fail_mode: secure
-               Port br-int
-                   Interface br-int
-                       type: internal
-           ovs_version: "2.0.1"
+    root@network-node:~# ovs-vsctl show
+    1a05c398-3024-493f-b3c4-a01912688ba4
+        Bridge br-ex
+            Port br-ex
+                Interface br-ex
+                    type: internal
+            Port "eth0"
+                Interface "eth0"
+        Bridge br-int
+            fail_mode: secure
+            Port br-int
+                Interface br-int
+                    type: internal
+        ovs_version: "2.0.1"
 
 ..
    Depending on your network interface driver, you may need to disable
@@ -415,30 +411,6 @@ If not, create one with the following command::
    interfaces. Let's see what happen)
 
 
-..
-   Note: this is needed when using ovs-plugin instead of ml2-plugin
-
-   Configure the GRE plugin editing
-   ``/etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini``::
-
-       [ovs]
-       tenant_network_type = gre
-       tunnel_id_ranges = 1:1000
-
-       # enable_tunnelling deprecated from Icehouse, please only use
-       # tunnel_type.
-       enable_tunneling = True
-       tunnel_type = gre
-
-       integration_bridge = br-int
-       tunnel_bridge = br-tun
-       local_ip = 192.168.160.11
-
-   On the same file, also configure the security group plugin::
-
-       [securitygroup]
-       firewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
-
 Almost done!
 ------------
 
@@ -449,8 +421,13 @@ Restart services::
     root@network-node:~# service neutron-l3-agent restart
     root@network-node:~# service neutron-metadata-agent restart
 
+
 Default networks
 ----------------
+
+**NOTE**: These instructions will not work, because security group on
+the `cloud-test.gc3.uzh.ch` cloud will filter packets directed to the
+floating IP of the VM!
 
 Before starting any VM, we need to setup some basic networks.
 
