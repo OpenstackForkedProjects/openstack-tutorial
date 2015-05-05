@@ -33,44 +33,58 @@
 %% Makes the title slide
 \maketitle
 
-\begin{frame}[fragile]
-  {Cattle vs. pets}
+\begin{frame}
+  {What is OpenStack}
 
-  \scriptsize
-  \begin{columns}
-    \column{0.5\linewidth}
-    \includegraphics[width=\linewidth]{kitten}
-    \column{0.5\linewidth}
-      \begin{itemize}
-      \item pets are given names like \texttt{kenny.example.org}
-      \item you care about them
-      \item they are unique, you check on them every day
-      \item when they get ill, you nurse them back to health
-      \end{itemize}
+  \begin{quote}
+    OpenStack is a cloud operating system that controls large pools of
+    compute, storage, and networking resources throughout a
+    datacenter, all managed through a dashboard that gives
+    administrators control while empowering their users to provision
+    resources through a web interface.
 
-  \end{columns}
-  \+\+\+
-  \begin{columns}
-    \column{0.5\linewidth}
-    \visible<2->{\includegraphics[width=\linewidth]{cattle}}
-
-    \column{0.5\linewidth}
-    \visible<2->{\begin{itemize}
-    \item cattle are given names like \texttt{vm-001.example.org}
-    \item they are all the same
-    \item when they get ill, you shoot them and get another one
-    \end{itemize}}
-  \end{columns}
-  % \includegraphics[width=\linewidth]{servers_pets_or_cattle.jpg}
-
-  % \tiny Rif: \url{http://www.slideshare.net/gmccance/cern-data-centre-evolution}
+    \hfill{\em \url{www.openstack.org}}
+  \end{quote}
 \end{frame}
+% \begin{frame}[fragile]
+%   {Cattle vs. pets}
+
+%   \scriptsize
+%   \begin{columns}
+%     \column{0.5\linewidth}
+%     \includegraphics[width=\linewidth]{kitten}
+%     \column{0.5\linewidth}
+%       \begin{itemize}
+%       \item pets are given names like \texttt{kenny.example.org}
+%       \item you care about them
+%       \item they are unique, you check on them every day
+%       \item when they get ill, you nurse them back to health
+%       \end{itemize}
+
+%   \end{columns}
+%   \+\+\+
+%   \begin{columns}
+%     \column{0.5\linewidth}
+%     \visible<2->{\includegraphics[width=\linewidth]{cattle}}
+
+%     \column{0.5\linewidth}
+%     \visible<2->{\begin{itemize}
+%     \item cattle are given names like \texttt{vm-001.example.org}
+%     \item they are all the same
+%     \item when they get ill, you shoot them and get another one
+%     \end{itemize}}
+%   \end{columns}
+%   % \includegraphics[width=\linewidth]{servers_pets_or_cattle.jpg}
+
+%   % \tiny Rif: \url{http://www.slideshare.net/gmccance/cern-data-centre-evolution}
+% \end{frame}
 
 \begin{frame}
-  {Let's say I don't like cats}
+  {OpenStack vs. rest of the (virtualization) world}
   What's different from KVM/VMWare/Virtualbox?
 
   \begin{itemize}
+    \pause
   \item specs of the VMs are choosen form a list of predefined
     \textbf{flavors} that define:
     \begin{itemize}
@@ -79,19 +93,26 @@
     \item size disk
     \end{itemize}
 
+    \pause
   \item complex network setup are possible
     \begin{itemize}
     \item but often not needed
     \end{itemize}
 
+    \pause
   \item OS already installed (but adapted automatically to the current
     instance)
 
+    \pause
   \item multiple options for storage (volumes and object storage)
 
+    \pause
   \item VMs are spawned on possibly thousends of nodes
 
   \end{itemize}
+
+\pause\scriptsize
+    yes, it's a \textit{clone} of Amazon
 \end{frame}
 
 \begin{frame}
@@ -425,6 +446,14 @@
     
   \caption*{\href{http://docs.openstack.org/training-guides/content/figures/5/a/figures/openstack-arch-havana-logical-v1.jpg}{OpenStack software overview}}
 \end{figure}
+\end{frame}
+
+\begin{frame}
+  {WTF?}
+  \begin{figure}[ht]
+    \centering
+    \includegraphics[height=20em]{doireallyhave.jpg}
+  \end{figure}
 \end{frame}
 
 \begin{frame}
