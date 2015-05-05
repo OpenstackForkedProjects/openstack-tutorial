@@ -1,6 +1,9 @@
 Troubleshooting
 ===============
 
+Exception when starting nova-compute
+------------------------------------
+
 This error::
 
     2015-05-02 20:24:18.037 16613 ERROR nova.compute.manager [-] [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e] Instance failed to spawn
@@ -26,6 +29,86 @@ This error::
 is caused by a bug.
 
 Set some value in ``/etc/machine-id``
+
+MTU
+---
+
+You will notice that the VMs will set an MTU of 1500, but since the
+packets have to be encapsulated in a GRE tunnel, and the GRE header is
+using a few bytes, you need to reduce the MTU of the interface on the
+VMs.
+
+This can be done by setting option ``dnsmasq_config_file`` in
+``/etc/neutron/dhcp_agent.ini`` pointing to a file with options for
+dnsmasq. For instance::
+
+    # /etc/neutron/dhcp_agent.ini
+    dnsmasq_config_file = /etc/neutron/dnsmasq.conf
+
+while ``/etc/neutron/dnsmasq.conf`` will contain::
+
+    dhcp-option-force=26,1400
+
+Note that we are using 1400 because our GRE networks are incapsulated
+themselves into another GRE tunnel (the "outer" OpenStack cloud `cloud-test`)
+
+Nested GRE
+----------
+
+During this tutorial we used GRE networks for the "inner" cloud. These
+gre tunnels are distributed among the test compute and network nodes
+using the vxlan/gre "internal" network in
+`cloud-test.gc3.uzh.ch`. However, OpenStack creates default security
+groups to control the traffic to and from a VM.
+
+In order to allow GRE traffic from compute-1 to network-node and vice
+versa, you have to add a rule to the security group, and allow at
+least IP protocol `47` both in ingress (in egress, the default
+security group allows anything).
+
+**NOTE**: on cloud-test, we also had to load `nf_conntrack_proto_gre`
+tunnel to make the kernel recognize the first GRE packet as "NEW",
+otherwise it was recognized as "INVALID" and the iptables rules put in
+place by Neutron would drop its packets.
+
+
+Metadata
+--------
+
+By default metadata rules are set on the router namespace. If you
+don't have a router, you can use the dhcp namespare for this. Enable
+it setting in ``/etc/neutron/dhcp_agent.ini``:
+
+    enable_isolated_metadata = True
+    enable_metadata_network = True
+
+Restart the `neutron-dhcp-agent` service and the next machine should
+receive via DHCP a new rule, like::
+
+    # ip route
+    10.11.11.0/24 dev eth0  src 10.11.11.1 
+    169.254.169.254 via 10.11.11.2 dev eth0 
+
+where in this case 10.11.11.2 is the IP of the dhcp server.
+
+In the namespace of the dhcp agent you will see::
+
+    root@network-node:~# ip netns exec qdhcp-ca893254-634b-48b5-9fbc-981afc1ede62 ip a
+    1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default 
+        link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+        inet 127.0.0.1/8 scope host lo
+           valid_lft forever preferred_lft forever
+        inet6 ::1/128 scope host 
+           valid_lft forever preferred_lft forever
+    12: tap41d99421-04: <BROADCAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default 
+        link/ether fa:16:3e:2f:93:80 brd ff:ff:ff:ff:ff:ff
+        inet 10.11.11.2/24 brd 10.11.11.255 scope global tap41d99421-04
+           valid_lft forever preferred_lft forever
+        inet 169.254.169.254/16 brd 169.254.255.255 scope global tap41d99421-04
+           valid_lft forever preferred_lft forever
+        inet6 fe80::f816:3eff:fe2f:9380/64 scope link 
+           valid_lft forever preferred_lft forever
+
 
 Floating IPs
 ------------
