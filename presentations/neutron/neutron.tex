@@ -307,6 +307,13 @@ ip netns help
   \includegraphics[width=\linewidth]{under-the-hood-compute}
 \end{frame}
 
+\begin{frame}
+  {easy peasy}
+  \begin{figure}[ht]
+    \centering
+    \includegraphics[height=20em]{badtime.jpg}
+  \end{figure}
+\end{frame}
 
 \begin{frame}
   {Metadata proxy}
@@ -314,7 +321,13 @@ ip netns help
   \begin{itemize}
   \item usually embededd in the L3 agent
 
+  \item can also be managed by the dhcp agent (useful for \textit{isolated} network)
+
   \item gets the request from the client, and redirect to the api node
+
+  \item uses IP address 169.254.169.254
+  \item requires a client on the VM (cfr \href{https://launchpad.net/cloud-init}{cloud-init})
+
   \end{itemize}
 \end{frame}
 
