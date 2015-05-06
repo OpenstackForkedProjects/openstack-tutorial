@@ -136,6 +136,7 @@ and change as follows in the ``[DEFAULT] section``::
      ...
      rpc_backend = rabbit
      rabbit_host = db-node
+     rabbit_userid = openstack
      rabbit_password = gridka
 
 .. NOTE: I don't think glance is sending notifications at all, as they

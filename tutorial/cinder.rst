@@ -318,6 +318,7 @@ and RabbitMQ, as usual. Update the section ``[DEFAULT]`` and add
     sql_connection = mysql://cinder:gridka@db-node/cinder
     rpc_backend = cinder.openstack.common.rpc.impl_kombu
     rabbit_host = db-node
+    rabbit_userid = openstack
     rabbit_password = gridka
 
 .. also needed 
@@ -334,13 +335,11 @@ the default name to be used when creating volumes.
 In some cases, you might need to define the ``iscsi_ip_address``,
 which is the IP address used to serve the volumes via iSCSI. This IP
 must be reachable by the compute nodes, and in some cases you may have
-a different network for this kind of traffic.
+a different network for this kind of traffic.::
 
-::
     [DEFAULT]
     [...]
     iscsi_ip_address = 10.0.0.8
-
 
 Finally, let's add a section for `keystone` authentication::
 

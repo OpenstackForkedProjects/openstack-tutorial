@@ -148,7 +148,8 @@ and MySQL servers. The minimum information you have to provide in the
     verbose=True
     # api_paste_config=/etc/nova/api-paste.ini
     # compute_scheduler_driver=nova.scheduler.simple.SimpleScheduler
-    rabbit_host=db-node
+    rabbit_host = db-node
+    rabbit_userid = openstack
     rabbit_password = gridka
 
     # Cinder: use internal URl instead of public one.

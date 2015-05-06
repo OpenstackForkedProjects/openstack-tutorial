@@ -98,6 +98,7 @@ RabbitMQ, keystone and MySQL information::
     # RabbitMQ configuration
     rpc_backend = neutron.openstack.common.rpc.impl_kombu
     rabbit_host = db-node
+    rabbit_userid = openstack
     rabbit_password = gridka
     # ...
 

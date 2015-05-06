@@ -176,13 +176,17 @@ Please keep the connection to the db-node open as we will need to
 operate on it briefly.
 
 The message broker uses guest as default user name and password. You
-can change that password by simply doing::
- 
-    root@db-node:~# rabbitmqctl change_password guest gridka
+can change that password, or (better) create a completely new user::
 
-This will change the default password to **gridka**. On a production
-environment, **please**, choose a better password (again, you can use
-`pwgen` to generate one).
+You should create a different user `openstack` with:
+
+    root@db-node:~# rabbitmqctl add_user openstack gridka
+
+and then grant write permissions to /::
+
+    root@db-node:~# rabbitmqctl set_permissions -p / openstack '.*' '.*' '.*'
+ 
+    rabbitmqctl change_password guest gridka
 
 By default RabbitMQ listens on port 5672, on all the available
 interfaces::
@@ -211,11 +215,3 @@ want to keep a shell opened on the `db-node`.
 
 `Next: Keystone - Identity service <keystone.rst>`_
 
-.. Indeed, guest can only access rabbitmq via localhost.
-   You should create a different user `openstack` with:
-
-       rabbitmqctl add_user openstack gridka
-
-   and then grant write permissions to /:
-
-       rabbitmqctl set_permissions -p / openstack '.*' '.*' '.*'

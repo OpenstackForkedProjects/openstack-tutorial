@@ -147,7 +147,8 @@ In ``[DEFAULT]`` section, update RabbitMQ configuration options::
     [DEFAULT]
     ...
     rpc_backend = rabbit
-    rabbit_host = 10.0.0.3
+    rabbit_host = db-node
+    rabbit_userid = openstack
     rabbit_password = gridka
 
 .. also rabbit_userid
