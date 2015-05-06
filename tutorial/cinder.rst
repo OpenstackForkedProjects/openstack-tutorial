@@ -190,9 +190,8 @@ We should now have three endpoints on keystone::
 Add a volume to volume-node instance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can do this via web interface
+You can do this via web interface::
 
-::
     (cloud)(cred:tutorial)antonio@kenny:~$ nova volume-create --display-name cinder 100
     +---------------------+--------------------------------------+
     | Property            | Value                                |
