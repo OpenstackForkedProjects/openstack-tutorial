@@ -1,4 +1,10 @@
+#!/bin/bash
+
+alias nossh="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+
 gre=95a67e12-a277-4e58-83f3-694d6ec53399
+
+
 for i in {db,api,auth,image,volume,network}-node
 do
 nova boot --key-name antonio --flavor m1.small --image ubuntu-14.04-cloudarchive --nic net-id=8cf2499c-4d99-4623-a482-a762bacd862d --nic net-id=$gre $i
