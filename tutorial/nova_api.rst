@@ -181,6 +181,33 @@ network, we will also update option ``glance_api_servers``::
     [glance]
     api_servers=image-node:9292
 
+
+Nova and neutron
+----------------
+
+In case you are using neutron (as we are, in this tutorial), you also
+need to specify a few more configuration options in
+``/etc/nova/nova.conf``::
+
+    [DEFAULT]
+    # ...
+    network_api_class = nova.network.neutronv2.api.API
+    linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
+    firewall_driver = nova.virt.firewall.NoopFirewallDriver
+    security_group_api = neutron
+
+    [neutron]
+    url = http://network-node:9696
+    auth_strategy = keystone
+    admin_tenant_name = service
+    admin_username = neutron
+    admin_password = gridka
+    admin_auth_url = http://auth-node:35357/v2.0
+
+As usual, remember to restart the services after the configuration has
+been performed.
+
+
 ..
    ::
        # Imaging service
@@ -300,34 +327,6 @@ The ``nova`` command line tool is the main command used to manage
 instances, volumes etc, but we need to complete the OpenStack
 installation in order to test it.
 
-
-Nova and neutron
-----------------
-
-In case you are using neutron (as we are, in this tutorial), you also
-need to specify a few more configuration options in
-``/etc/nova/nova.conf``::
-
-    [DEFAULT]
-    # ...
-    network_api_class = nova.network.neutronv2.api.API
-    linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
-    firewall_driver = nova.virt.firewall.NoopFirewallDriver
-    security_group_api = neutron
-
-    [neutron]
-    # It is fine to have Noop here, because this is the *nova*
-    # firewall. Neutron is responsible of configuring the firewall and its
-    # configuration is stored in /etc/neutron/neutron.conf
-    url = http://network-node:9696
-    auth_strategy = keystone
-    admin_tenant_name = service
-    admin_username = neutron
-    admin_password = gridka
-    admin_auth_url = http://auth-node:35357/v2.0
-
-As usual, remember to restart the services after the configuration has
-been performed.
 
 Horizon
 -------
