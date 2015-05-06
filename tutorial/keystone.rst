@@ -385,12 +385,12 @@ operate on it briefly.
 Further information about the keystone service can be found at in the
 `official documentation <http://docs.openstack.org/icehouse/install-guide/install/apt/content/ch_keystone.html>`_
 
-Removing the authentication token
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Removing the admin token
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 Once you have a keystone admin user you should *disable* the admin
 token. To do that, you have to edit the
-``/etc/keystone/keystone-paste.ini``, and remove ``auth_token_auth``
+``/etc/keystone/keystone-paste.ini``, and remove ``admin_token_auth``
 from the ``pipeline`` option in the following configuration sections:
 
 * ``[pipeline:public_api]``
