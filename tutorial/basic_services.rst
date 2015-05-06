@@ -178,7 +178,7 @@ operate on it briefly.
 The message broker uses guest as default user name and password. You
 can change that password, or (better) create a completely new user::
 
-You should create a different user `openstack` with:
+You should create a different user `openstack` with::
 
     root@db-node:~# rabbitmqctl add_user openstack gridka
 
@@ -186,8 +186,6 @@ and then grant write permissions to /::
 
     root@db-node:~# rabbitmqctl set_permissions -p / openstack '.*' '.*' '.*'
  
-    rabbitmqctl change_password guest gridka
-
 By default RabbitMQ listens on port 5672, on all the available
 interfaces::
 
