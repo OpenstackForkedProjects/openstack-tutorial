@@ -385,6 +385,38 @@ operate on it briefly.
 Further information about the keystone service can be found at in the
 `official documentation <http://docs.openstack.org/icehouse/install-guide/install/apt/content/ch_keystone.html>`_
 
+Removing the authentication token
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Once you have a keystone admin user you should *disable* the admin
+token. To do that, you have to edit the
+``/etc/keystone/keystone-paste.ini``, and remove ``auth_token_auth``
+from the ``pipeline`` option in the following configuration sections:
+
+* ``[pipeline:public_api]``
+* ``[pipeline:admin_api]``
+* ``[pipeline:api_v3]``
+
+The final result should looks like::
+
+    [pipeline:public_api]
+    # The last item in this pipeline must be public_service or an equivalent
+    # application. It cannot be a filter.
+    pipeline = sizelimit url_normalize build_auth_context token_auth ec2_extension user_crud_extension public_service
+
+    [pipeline:admin_api]
+    # The last item in this pipeline must be admin_service or an equivalent
+    # application. It cannot be a filter.
+    pipeline = sizelimit url_normalize build_auth_context token_auth ec2_extension s3_extension crud_extension admin_service
+
+    [pipeline:api_v3]
+    # The last item in this pipeline must be service_v3 or an equivalent
+    # application. It cannot be a filter.
+    pipeline = sizelimit url_normalize build_auth_context token_auth ec2_extension_v3 s3_extension simple_cert_extension revoke_extension service_v3
+
+As usual, remember to restart the `keystone` service after you update
+the configuration file.
+
 `Next: Glance - Image Service <glance.rst>`_
 
 .. NOTE:
