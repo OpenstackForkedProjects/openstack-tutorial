@@ -150,6 +150,20 @@ communicate any change in the network topology. Again in the
     nova_admin_password = gridka
     nova_admin_auth_url = http://auth-node:35357/v2.0
 
+**NOTE:** put the correct value for the ``nova_admin_tenant_id``
+option: it has to be the tenant id of the `service` tenant. You can
+recover it from a node with access to keystone with::
+
+    root@auth-node:~# keystone tenant-get service
+    +-------------+----------------------------------+
+    |   Property  |              Value               |
+    +-------------+----------------------------------+
+    | description |                                  |
+    |   enabled   |               True               |
+    |      id     | 3dff3552489e458c85143a84759db398 |
+    |     name    |             service              |
+    +-------------+----------------------------------+
+
 
 The L3-agent (responsible for routing) reads the
 ``/etc/neutron/l3_agent.ini`` file instead. Ensure the following
