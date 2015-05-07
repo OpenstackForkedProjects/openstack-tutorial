@@ -267,7 +267,10 @@ Database bootstrap
 
 Initialize the database with::
 
-    root@network-node:~# neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade juno
+    root@network-node:~# neutron-db-manage \
+        --config-file /etc/neutron/neutron.conf \
+        --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
+        upgrade juno
 
  
 OpenVSwitch
@@ -436,6 +439,18 @@ Restart services::
     root@network-node:~# service neutron-dhcp-agent restart
     root@network-node:~# service neutron-l3-agent restart
     root@network-node:~# service neutron-metadata-agent restart
+    root@network-node:~# service neutron-plugin-openvswitch-agent restart
+
+Testing nova
+~~~~~~~~~~~~
+
+As usual, you can set the environment variables to use the ``neutron`` command line
+without having to specify the credentials via command line options::
+
+    root@network-node:~# export OS_USERNAME=admin
+    root@network-node:~# export OS_PASSWORD=gridka
+    root@network-node:~# export OS_TENANT_NAME=admin
+    root@network-node:~# export OS_AUTH_URL=http://auth-node.example.org:5000/v2.0
 
 
 Default networks
