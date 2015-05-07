@@ -214,9 +214,27 @@ displayed above.
 neutron on the compute node
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Login on the **compute-1** node and install openvswitch and neutron plugins::
+To enable neutron for the nova-compute service you also have to ensure
+the following lines to are presents in ``/etc/nova/nova.conf``::
 
-    root@compute-1:~# apt-get install neutron-plugin-openvswitch-agent neutron-plugin-ml2
+    [DEFAULT]
+    # ...
+
+    network_api_class = nova.network.neutronv2.api.API
+    linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
+    firewall_driver = nova.virt.firewall.NoopFirewallDriver
+    security_group_api = neutron
+
+    [neutron]
+    # It is fine to have Noop here, because this is the *nova*
+    # firewall. Neutron is responsible of configuring the firewall and its
+    # configuration is stored in /etc/neutron/neutron.conf
+    url = http://network-node:9696
+    auth_strategy = keystone
+    admin_tenant_name = service
+    admin_username = neutron
+    admin_password = gridka
+    admin_auth_url = http://auth-node:35357/v2.0
 
 Ensure the `br-int` bridge has been created by the installer::
 
@@ -304,27 +322,6 @@ The ML2 plugin is configured in
     firewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
     enable_security_group = True
 
-Configure `nova-compute` so that it knows about neutron. In file
-``/etc/nova/nova.conf`` ensure the following lines are present::
-
-    [DEFAULT]
-    # ...
-
-    network_api_class = nova.network.neutronv2.api.API
-    linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
-    firewall_driver = nova.virt.firewall.NoopFirewallDriver
-    security_group_api = neutron
-
-    [neutron]
-    # It is fine to have Noop here, because this is the *nova*
-    # firewall. Neutron is responsible of configuring the firewall and its
-    # configuration is stored in /etc/neutron/neutron.conf
-    url = http://network-node:9696
-    auth_strategy = keystone
-    admin_tenant_name = service
-    admin_username = neutron
-    admin_password = gridka
-    admin_auth_url = http://auth-node:35357/v2.0
 
 Restart `nova-compute` and the neutron agent::
 
