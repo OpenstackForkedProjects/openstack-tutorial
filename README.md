@@ -1,8 +1,8 @@
-GridKa School 2014 - Training Session on OpenStack
-==================================================
+S3IT OpenStack Tutorial - May 2015 - internal tutorial
+======================================================
 
 <sub>
-   This tutorial is licensed ©2014, licensed under a
+   This tutorial is licensed ©2014-2015, licensed under a
    [Creative Commons Attribution/Share-Alike (BY-SA) license](http://creativecommons.org/licenses/by-sa/3.0/).
 </sub>
 
@@ -21,11 +21,11 @@ Teachers:
 
 
 This guide is to be used as reference for the installation of
-OpenStack `Icehouse` during the: `GridKa School 2014 - Training Session
-on OpenStack`.
+OpenStack `Juno` during the internal tutorial organized by S3IT at
+University of Zurich.
 
 Goal of the tutorial is to end up with a small installation of
-OpenStack Icehouse on a set of different Ubuntu 14.04 virtual
+OpenStack Juno on a set of different Ubuntu 14.04 virtual
 machines.
 
 Since our focus is to explain the most basic components of OpenStack
