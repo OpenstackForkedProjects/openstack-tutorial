@@ -118,9 +118,10 @@ RabbitMQ, keystone and MySQL information::
     [database]
     connection = mysql://neutron:gridka@db-node/neutron
 
-    .. for kilo:
-       auth_uri = http://auth-node:35357/v2.0/
-       identity_uri = http://auth-node:5000
+
+.. for kilo:
+   auth_uri = http://auth-node:35357/v2.0/
+   identity_uri = http://auth-node:5000
 
 Then, we need to also update the configuration related to ML2, the
 plugin we are going to use. Again in the
@@ -244,8 +245,8 @@ options are set::
     # ...
     enable_security_group = True
 
-    ..
-       firewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+..
+    firewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
 
 Database bootstrap
 ------------------

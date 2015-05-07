@@ -145,19 +145,17 @@ In ``/etc/nova/nova.conf`` add a ``[database]`` section::
 In ``[DEFAULT]`` section, update RabbitMQ configuration options::
 
     [DEFAULT]
-    ...
+    # ...
     rpc_backend = rabbit
     rabbit_host = db-node
     rabbit_userid = openstack
     rabbit_password = gridka
 
-.. also rabbit_userid
-
 For keystone integration, ensure ``auth_strategy`` option is set in
 ``[DEFAULT]`` section, and add a ``[keystone_authtoken]`` section::
 
     [DEFAULT]
-    ...
+    # ...
     auth_strategy = keystone
 
     [keystone_authtoken]
@@ -170,7 +168,7 @@ Finally, a few options related to vnc display need to be changed in
 ``[DEFAULT]`` section::
 
    [DEFAULT]
-   ...
+   ## ...
    my_ip = 10.0.0.6
    vncserver_listen = 10.0.0.6
    vncserver_proxyclient_address = 10.0.0.6
@@ -203,9 +201,6 @@ need to specify a few more configuration options in
     admin_username = neutron
     admin_password = gridka
     admin_auth_url = http://auth-node:35357/v2.0
-
-As usual, remember to restart the services after the configuration has
-been performed.
 
 
 ..
