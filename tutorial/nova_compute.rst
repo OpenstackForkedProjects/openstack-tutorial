@@ -366,6 +366,22 @@ with full support for virtualization you would probably need to set::
    * Edit libvirt-bin.conf (follow the tutorial)
    * Modify l'API in api-paste.ini in order to abilitate access to keystone.
 
+When Nova is using the libvirt virtualization driver, the SMBIOS serial number
+supplied by libvirt is provided to the guest instances that are running on a
+compute node. This serial number may expose sensitive information about the
+underlying compute node hardware; it is preferrable to use the /etc/machine-id
+UUID instead of the host hardware UUID. This means that even containers will see
+a separate /etc/machine-id value.
+
+By default, the data source used to the populate the host "serial" UUID exposed
+to guest in the virtual BIOS is the file /etc/machine-id, falling back to the
+libvirt reported host UUID. If your compute node does not contain a valid
+/etc/machine-id file, generate one with the following command:
+
+    root@compute-1:~# uuidgen > /etc/machine-id
+
+For further details: https://wiki.openstack.org/wiki/OSSN/OSSN-0028
+
 
 Final check
 ~~~~~~~~~~~
