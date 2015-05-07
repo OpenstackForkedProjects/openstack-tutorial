@@ -41,22 +41,22 @@ for starting an OpenStack instance is done. Note that this is very high level de
    c) download the image
    d) request to allocate network via queue
 
-5) **nova-network** configure the network
+5) **nova-compute** requests creation of a neutron *port*
+
+6) **neutron** allocate the port:
 
    a) allocates a valid private ip
-   b) if requested, it allocates a floating ip
-   c) configures the operating system as needed (in our case: dnsmasq
-      and iptables are configured)
-   d) updates the request status
+   b) instructs the plugin agent to implement the port and wire it to
+      the network interface to the VM[#]_
 
-6) **nova-api** contacts *cinder* to provision the volume
+7) **nova-api** contacts *cinder* to provision the volume
 
    a) gets connection parameters from cinder
    b) uses iscsi to make the volume available on the local machine
    c) asks the hypervisor to provision the local volume as virtual
       volume of the specified virtual machine
 
-7) **horizon** or **nova** poll the status of the request by
+8) **horizon** or **nova** poll the status of the request by
    contacting **nova-api** until it is ready.
 
 
@@ -732,3 +732,12 @@ References
 
 
 
+.. [#] how this is done, depends on the plugin and neutron
+       configuration. In our setup, this means:
+       1) create a linux bridge and attach it to the tap interface
+       2) create a veth pair, attach one end to the bridge and the other to the `br-int` bridge
+       3) set vlan tag for the port on the integration bridge
+       4) configure *flows* on the integration bridge
+       5) setup the L2 network (the gre tunnel) if it's not already there
+       6) configure iptables (between the tap and the bridge interface) to enforce the security groups
+       7) notify nova that the port is up and running
