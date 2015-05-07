@@ -398,7 +398,6 @@ you should be able to see the compute node from the **api-node**::
     nova-conductor   api-node                             internal         enabled    :-)   2013-08-13 13:43:31
     nova-consoleauth api-node                             internal         enabled    :-)   2013-08-13 13:43:35
     nova-scheduler   api-node                             internal         enabled    :-)   2013-08-13 13:43:35
-    nova-network     network-node                         internal         enabled    :-)   2013-08-19 09:28:42
     nova-compute     compute-1                            nova             enabled    :-)   None      
 
 
