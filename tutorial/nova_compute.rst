@@ -400,6 +400,20 @@ you should be able to see the compute node from the **api-node**::
     nova-scheduler   api-node                             internal         enabled    :-)   2013-08-13 13:43:35
     nova-compute     compute-1                            nova             enabled    :-)   None      
 
+You should also see the openvswitch agent from the output of `neutron
+agent-list`::
+
+    root@api-node:~# neutron agent-list
+    +--------------------------------------+--------------------+--------------+-------+----------------+---------------------------+
+    | id                                   | agent_type         | host         | alive | admin_state_up | binary                    |
+    +--------------------------------------+--------------------+--------------+-------+----------------+---------------------------+
+    | 33a35494-180c-43e4-8c05-8b67011b4943 | Metadata agent     | network-node | :-)   | True           | neutron-metadata-agent    |
+    | 7e238cc3-641e-48ba-83f4-1d825d4a5519 | Open vSwitch agent | compute-1    | :-)   | True           | neutron-openvswitch-agent |
+    | 82193fd4-b1e8-4248-912a-d736431ab077 | L3 agent           | network-node | :-)   | True           | neutron-l3-agent          |
+    | bf45584a-8b4d-42f9-848c-2928821d4e28 | DHCP agent         | network-node | :-)   | True           | neutron-dhcp-agent        |
+    | c45fecd8-e893-4dd9-9427-7d561697b8c4 | Open vSwitch agent | network-node | :-)   | True           | neutron-openvswitch-agent |
+    +--------------------------------------+--------------------+--------------+-------+----------------+---------------------------+
+
 
 
 Testing OpenStack
