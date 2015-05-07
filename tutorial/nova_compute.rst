@@ -212,7 +212,7 @@ displayed above.
        admin_password = novaServ
 
 neutron on the compute node
----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Login on the **compute-1** node and install openvswitch and neutron plugins::
 
