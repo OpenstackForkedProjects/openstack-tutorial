@@ -278,9 +278,9 @@ Configure RabbitMQ and Keystone options for neutron, by editing
     admin_user = neutron
     admin_password = gridka
 
-    .. in kilo:
-       auth_uri = http://auth-node:35357/v2.0/
-       identity_uri = http://auth-node:5000
+.. in kilo:
+   auth_uri = http://auth-node:35357/v2.0/
+   identity_uri = http://auth-node:5000
 
 ..
    Again on ``/etc/neutron/neutron.conf``, configure the neutron to use
