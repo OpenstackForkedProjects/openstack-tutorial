@@ -45,9 +45,9 @@ nova-network
 nova-compute
     OpenStack service which runs on the compute node and is
     responsible of actual managing the OpenStack instances. It 
-    supports different hypervisors. The complete list bellow can be found `here
-    <http://docs.openstack.org/trunk/openstack-compute/admin/content/selecting-a-hypervisor.html>`_.
-    The commonly used one is KVM but due to limitation in our setup we
+    supports different hypervisors. More information `here
+    <http://docs.openstack.org/admin-guide-cloud/compute_arch.html#hypervisors>`_.
+    The most commonly used is KVM but due to limitation in our setup we
     will use qemu.
 
 glance

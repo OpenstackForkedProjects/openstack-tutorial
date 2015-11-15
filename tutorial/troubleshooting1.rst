@@ -61,7 +61,7 @@ using the vxlan/gre "internal" network in
 `cloud-test.gc3.uzh.ch`. However, OpenStack creates default security
 groups to control the traffic to and from a VM.
 
-In order to allow GRE traffic from compute-1 to network-node and vice
+In order to allow GRE traffic from hypervisor-1 to network-node and vice
 versa, you have to add a rule to the security group, and allow at
 least IP protocol `47` both in ingress (in egress, the default
 security group allows anything).
@@ -158,8 +158,10 @@ it manually or using `auto_assign_floating_ip` is the same)
 
 * Firewall rules are added to the `nat` table of the network
   node. Specifically:
+  
   - DNAT rule to redirect all traffic to the floating IP towards the
     private IP of the VM
+    
   - SNAT rule to modify all packets originated on the VM and directed
     to the interned, replacing the source address (the private IP)
     with the floating IP
@@ -172,7 +174,7 @@ see where the packets goes.
 * First, run tcpdump on the compute node, to check if it's actually
   coming out::
 
-     root@compute-1:~# tcpdump -i br100 -n icmp
+     root@hypervisor-1:~# tcpdump -i br100 -n icmp
      tcpdump: WARNING: br100: no IPv4 address assigned
      tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
      listening on br100, link-type EN10MB (Ethernet), capture size 65535 bytes
@@ -446,7 +448,7 @@ You can test the issue booting an instance from the web interface and
 choose `boot from image (creates a new volume)`, or from the command
 line running the following command::
 
-   root@api-node:~# nova boot \
+   root@compute-node:~# nova boot \
      --block-device \
      id=7b05a000-dd1b-409a-ba51-a567a9ebec13,source=image,dest=volume,size=1,shutdown=remove,bootindex=0 \
      --key-name gridka-auth-node --flavor m1.tiny test-from-volume
@@ -539,7 +541,7 @@ proposed sabotages (but you can be creative!)
   tool and via web interface and check if there are differences.
 
 * Set a *wrong* password in ``/etc/nova/nova.conf`` file on the
-  **api-node** for the sql connection, restart all the nova services
+  **compute-node** for the sql connection, restart all the nova services
 
 * Do the same, but for the **glance-api** service
 
@@ -597,11 +599,11 @@ List of possible checks
 .. elasticluster:
    on the node
    (elasticluster)root@gks-246:[~] $ lsb_release -a
-   LSB Version:	:base-4.0-amd64:base-4.0-noarch:core-4.0-amd64:core-4.0-noarch:graphics-4.0-amd64:graphics-4.0-noarch:printing-4.0-amd64:printing-4.0-noarch
-   Distributor ID:	Scientific
-   Description:	Scientific Linux release 6.4 (Carbon)
-   Release:	6.4
-   Codename:	Carbon
+   LSB Version: :base-4.0-amd64:base-4.0-noarch:core-4.0-amd64:core-4.0-noarch:graphics-4.0-amd64:graphics-4.0-noarch:printing-4.0-amd64:printing-4.0-noarch
+   Distributor ID:  Scientific
+   Description: Scientific Linux release 6.4 (Carbon)
+   Release: 6.4
+   Codename:    Carbon
 
    (elasticluster)root@gks-246:[~] $ pip install elasticluster
 

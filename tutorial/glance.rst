@@ -1,16 +1,11 @@
+----------------------
 Glance - Image Service
-======================
-
-``image-node``
---------------
+----------------------
 
 As we did for the auth node before staring it is good to quickly check
 if the remote ssh execution of the commands done in the `all nodes
 installation <basic_services.rst#all-nodes-installation>`_ section worked without problems. You can again verify
 it by checking the ntp installation.
-
-Glance
-++++++
 
 **Glance** is the name of the image service of OpenStack. It is
 responsible for storing the images that will be used as templates to
@@ -31,8 +26,8 @@ Glance is actually composed of two different services:
 Very good explanation about what glance does is available on `this
 blogpost <http://bcwaldon.cc/2012/11/06/openstack-image-service-grizzly.html>`_
 
-glance database and keystone setup
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+database and keystone setup
+---------------------------
 
 Similarly to what we did for the keystone service, also for the glance
 service we need to create a database and a pair of user and password
@@ -108,8 +103,8 @@ and the related endpoint::
     |  service_id |    05429191756f4852b935c81c19c21424   |
     +-------------+---------------------------------------+
 
-glance installation and configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+installation and configuration
+------------------------------
 
 On the **image-node** install the **glance** package::
 
@@ -205,8 +200,8 @@ access glance::
     root@image-node:~# export OS_TENANT_NAME=service
     root@image-node:~# export OS_AUTH_URL=http://auth-node.example.org:5000/v2.0
 
-Testing glance
-~~~~~~~~~~~~~~
+Testing
+-------
 
 First of all, let's download a very small test image::
 
@@ -306,7 +301,7 @@ name`::
 
 
 Further improvements
-~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 By default glance will store all the images as files in
 ``/var/lib/glance/images``, but other options are available,

@@ -1,14 +1,12 @@
-Compute service - nova-api
-==========================
+----------------------
+Compute service - nova
+----------------------
 
 As we did for the glance node before staring it is good to quickly
 check if the remote ssh execution of the commands done in the `all
 nodes installation <basic_services.rst#all-nodes-installation>`_
 section worked without problems. You can again verify it by checking
 the ntp installation.
-
-Nova
-++++
 
 Nova is composed to a variety of services
 
@@ -19,7 +17,7 @@ In this section we are going to install and configure
 the OpenStack nova services. 
 
 db and keystone configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
 First move to the **db-node** and create the database::
 
@@ -78,17 +76,17 @@ We need to create first the **compute** service::
 and its endpoint::
 
     root@auth-node:~# keystone endpoint-create --region RegionOne \
-      --publicurl 'http://api-node.example.org:8774/v2/$(tenant_id)s' \
-      --adminurl 'http://api-node.example.org:8774/v2/$(tenant_id)s' \
-      --internalurl 'http://api-node:8774/v2/$(tenant_id)s' \
+      --publicurl 'http://compute-node.example.org:8774/v2/$(tenant_id)s' \
+      --adminurl 'http://compute-node.example.org:8774/v2/$(tenant_id)s' \
+      --internalurl 'http://compute-node:8774/v2/$(tenant_id)s' \
       --service nova
     +-------------+---------------------------------------------------+
     |   Property  |                       Value                       |
     +-------------+---------------------------------------------------+
-    |   adminurl  | http://api-node.example.org:8774/v2/$(tenant_id)s |
+    |   adminurl  | http://compute-node.example.org:8774/v2/$(tenant_id)s |
     |      id     |          50f0260b221a4ea889aa03dc0532d55f         |
     | internalurl |       http://10.0.0.6:8774/v2/$(tenant_id)s       |
-    |  publicurl  | http://api-node.example.org:8774/v2/$(tenant_id)s |
+    |  publicurl  | http://compute-node.example.org:8774/v2/$(tenant_id)s |
     |    region   |                     RegionOne                     |
     |  service_id |          338d7b7ec7f14622a1fc1a99bd9004bf         |
     +-------------+---------------------------------------------------+
@@ -109,27 +107,27 @@ then the **ec2** service::
 and its endpoint::
 
     root@auth-node:~# keystone endpoint-create --region RegionOne \
-      --publicurl 'http://api-node.example.org:8773/services/Cloud' \
-      --adminurl 'http://api-node.example.org:8773/services/Admin' \
-      --internalurl 'http://api-node:8773/services/Cloud' \
+      --publicurl 'http://compute-node.example.org:8773/services/Cloud' \
+      --adminurl 'http://compute-node.example.org:8773/services/Admin' \
+      --internalurl 'http://compute-node:8773/services/Cloud' \
       --service ec2
     +-------------+-------------------------------------------------+
     |   Property  |                      Value                      |
     +-------------+-------------------------------------------------+
-    |   adminurl  | http://api-node.example.org:8773/services/Admin |
+    |   adminurl  | http://compute-node.example.org:8773/services/Admin |
     |      id     |         c3194c76b046426eaa2eef73b537298e        |
     | internalurl |       http://10.0.0.6:8773/services/Cloud       |
-    |  publicurl  | http://api-node.example.org:8773/services/Cloud |
+    |  publicurl  | http://compute-node.example.org:8773/services/Cloud |
     |    region   |                    RegionOne                    |
     |  service_id |         a17a1f1d605a4ad58993c6d9a803b2af        |
     +-------------+-------------------------------------------------+
 
 nova installation and configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------
 
-Now we can continue the installation on the **api-node**::
+Now we can continue the installation on the **compute-node**::
 
-    root@api-node:~# apt-get install -y nova-novncproxy novnc nova-api \
+    root@compute-node:~# apt-get install -y nova-novncproxy novnc nova-api \
       nova-ajax-console-proxy nova-cert nova-conductor \
       nova-consoleauth nova-doc nova-scheduler python-novaclient
 
@@ -234,22 +232,22 @@ need to specify a few more configuration options in
 
 Sync the nova database::
 
-    root@api-node:~# nova-manage db sync
+    root@compute-node:~# nova-manage db sync
 
 Restart all the nova services::
 
-    root@api-node:~# for serv in \
+    root@compute-node:~# for serv in \
         nova-{api,conductor,scheduler,novncproxy,consoleauth,cert};\
         do service $serv restart; done
 
 ``nova-manage`` can be used to check the status of the services::
 
-    root@api-node:~# nova-manage service list
+    root@compute-node:~# nova-manage service list
     Binary           Host                                 Zone             Status     State Updated_At
-    nova-conductor   api-node                             internal         enabled    :-)   2014-08-16 16:18:53
-    nova-scheduler   api-node                             internal         enabled    :-)   2014-08-16 16:18:48
-    nova-consoleauth api-node                             internal         enabled    :-)   2014-08-26 16:18:54
-    nova-cert        api-node                             internal         enabled    :-)   2014-08-16 16:18:52
+    nova-conductor   compute-node                             internal         enabled    :-)   2014-08-16 16:18:53
+    nova-scheduler   compute-node                             internal         enabled    :-)   2014-08-16 16:18:48
+    nova-consoleauth compute-node                             internal         enabled    :-)   2014-08-26 16:18:54
+    nova-cert        compute-node                             internal         enabled    :-)   2014-08-16 16:18:52
 
 Similar output is given by ``nova service-list`` and ``nova
 host-list`` commands, although ``nova-manage`` has direct access to
@@ -257,34 +255,34 @@ the database, therefore must run on an host with the correct
 ``nova.conf``, while the ``nova`` commands uses the network API, so
 you can run them from a computer not part of the cloud.
 
-Testing nova
-~~~~~~~~~~~~
+Testing
+-------
 
 So far we cannot run an instance yet, but we can check if nova
 is able to talk to the services already installed. As usual, you can
 set the environment variables to use the ``nova`` command line
 without having to specify the credentials via command line options::
 
-    root@api-node:~# export OS_USERNAME=admin
-    root@api-node:~# export OS_PASSWORD=gridka
-    root@api-node:~# export OS_TENANT_NAME=admin
-    root@api-node:~# export OS_AUTH_URL=http://auth-node.example.org:5000/v2.0
+    root@compute-node:~# export OS_USERNAME=admin
+    root@compute-node:~# export OS_PASSWORD=gridka
+    root@compute-node:~# export OS_TENANT_NAME=admin
+    root@compute-node:~# export OS_AUTH_URL=http://auth-node.example.org:5000/v2.0
 
 you can check the status of the nova service::
 
-    root@api-node:~# nova service-list
+    root@compute-node:~# nova service-list
     +------------------+----------+----------+---------+-------+----------------------------+
     | Binary           | Host     | Zone     | Status  | State | Updated_at                 |
     +------------------+----------+----------+---------+-------+----------------------------+
-    | nova-cert        | api-node | internal | enabled | up    | 2013-08-16T16:24:14.000000 |
-    | nova-conductor   | api-node | internal | enabled | up    | 2013-08-16T16:24:15.000000 |
-    | nova-scheduler   | api-node | internal | enabled | up    | 2013-08-16T16:24:20.000000 |
-    | nova-consoleauth | api-node | internal | enabled | up    | 2013-08-16T16:24:20.000000 |
+    | nova-cert        | compute-node | internal | enabled | up    | 2013-08-16T16:24:14.000000 |
+    | nova-conductor   | compute-node | internal | enabled | up    | 2013-08-16T16:24:15.000000 |
+    | nova-scheduler   | compute-node | internal | enabled | up    | 2013-08-16T16:24:20.000000 |
+    | nova-consoleauth | compute-node | internal | enabled | up    | 2013-08-16T16:24:20.000000 |
     +------------------+----------+----------+---------+-------+----------------------------+
 
 but you can also work with glance images::
 
-    root@api-node:~# nova image-list
+    root@compute-node:~# nova image-list
     +--------------------------------------+--------------+--------+--------+
     | ID                                   | Name         | Status | Server |
     +--------------------------------------+--------------+--------+--------+
@@ -293,7 +291,7 @@ but you can also work with glance images::
 
 or create and manage cinder volumes::
 
-    root@api-node:~# nova volume-create --display-name test2 1
+    root@compute-node:~# nova volume-create --display-name test2 1
     +---------------------+--------------------------------------+
     | Property            | Value                                |
     +---------------------+--------------------------------------+
@@ -311,7 +309,7 @@ or create and manage cinder volumes::
     | id                  | 180a081a-065b-497e-998d-aa32c7c295cc |
     | metadata            | {}                                   |
     +---------------------+--------------------------------------+
-    root@api-node:~# nova volume-list
+    root@compute-node:~# nova volume-list
     +--------------------------------------+-----------+--------------+------+-------------+-------------+
     | ID                                   | Status    | Display Name | Size | Volume Type | Attached to |
     +--------------------------------------+-----------+--------------+------+-------------+-------------+
@@ -326,18 +324,18 @@ installation in order to test it.
 Horizon
 -------
 
-On the **api-node**::
+On the **compute-node**::
 
-    root@api-node:# apt-get install openstack-dashboard
+    root@compute-node:# apt-get install openstack-dashboard
 
 Edit the file ``/etc/openstack-dashboard/local_settings.py`` and
 update the ``OPENSTACK_HOST`` variable::
 
     OPENSTACK_HOST = "auth-node.example.org"
 
-Now, you should be able to connect to the api-node node by opening the
+Now, you should be able to connect to the compute-node node by opening the
 URL ``http://172.23.4.176/horizon`` (replace with the ip in vlan842 of
-your api-node) on your web browser
+your compute-node) on your web browser
 
 
 ..
@@ -365,7 +363,7 @@ native apis, although in our case we need both.
 The EC2 compatibility layer, however, need one more configuration
 option we didn't define. 
 
-Edit ``/etc/nova/nova.conf`` on the **api-node** and add the following
+Edit ``/etc/nova/nova.conf`` on the **compute-node** and add the following
 option::
 
     keystone_ec2_url=http://auth-node.example.org:5000/v2.0/ec2tokens
@@ -387,7 +385,7 @@ and password. You can delete them whenever you want.
 
 To create a new pair of ec2 credentials you can run::
 
-    root@api-node:~# keystone ec2-credentials-create
+    root@compute-node:~# keystone ec2-credentials-create
     +-----------+----------------------------------+
     |  Property |              Value               |
     +-----------+----------------------------------+
@@ -403,14 +401,14 @@ ec2-credentials-delete --access <access_key>``
 If you want to test the EC2 interface the easiest way is to install
 the **euca2ools** tool::
 
-    root@api-node:~# apt-get install euca2ools
+    root@compute-node:~# apt-get install euca2ools
 
 and then run, for instance, the command::
 
-    root@api-node:~# euca-describe-images \
+    root@compute-node:~# euca-describe-images \
       --access-key c22f5770ee924f25b4c7b091f521b15f \
       --secret-key 78b92ddde8134b46a05dbd91023e27db \
-      -U http://api-node.example.org:8773/services/Cloud
+      -U http://compute-node.example.org:8773/services/Cloud
     IMAGE	ami-00000001	None (Cirros-0.3.0-x86_64)	0aacc603e6dd425caa51db0d07957412	available	private			machine				instance-store
 
 There are two things to note about this command:
@@ -431,9 +429,9 @@ Also for the euca2ools and for most of the EC2 libraries, setting the
 following environment variables allows you to avoid explicitly specify
 access/secret keys and endpoint url::
 
-    root@api-node:~# export EC2_ACCESS_KEY=445f486efe1a4eeea2c924d0252ff269
-    root@api-node:~# export EC2_SECRET_KEY=ff98e8529e2543aebf6f001c74d65b17
-    root@api-node:~# export EC2_URL=http://api-node.example.org:8773/services/Cloud
+    root@compute-node:~# export EC2_ACCESS_KEY=445f486efe1a4eeea2c924d0252ff269
+    root@compute-node:~# export EC2_SECRET_KEY=ff98e8529e2543aebf6f001c74d65b17
+    root@compute-node:~# export EC2_URL=http://compute-node.example.org:8773/services/Cloud
 
 
 `Next: neutron - Network service - *complex* version <neutron.rst>`_

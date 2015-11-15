@@ -1,5 +1,6 @@
-Network service - *hard* version - neutron
-==========================================
+-------------------------
+Network service - neutron
+-------------------------
 
 As we did for the api node before staring it is good to quickly check
 if the remote ssh execution of the commands done in the `all nodes
@@ -144,7 +145,7 @@ communicate any change in the network topology. Again in the
 
     notify_nova_on_port_status_changes = True
     notify_nova_on_port_data_changes = True
-    nova_url = http://api-node:8774/v2
+    nova_url = http://compute-node:8774/v2
     nova_admin_username = nova
     nova_admin_tenant_id = 3dff3552489e458c85143a84759db398
     nova_admin_password = gridka
@@ -207,7 +208,7 @@ service and the `metadata-agent`::
     admin_user = neutron
     admin_password = gridka
     # IP of the nova-api/nova-metadata-api service
-    nova_metadata_ip = api-node
+    nova_metadata_ip = compute-node
     metadata_proxy_shared_secret = d1a6195d-5912-4ef9-b01f-426603d56bd2
 
 `nova-api` service
@@ -223,7 +224,7 @@ as a proxy for metadata api::
 
 Remember to restart the service::
 
-    root@api-node:~# service nova-api restart
+    root@compute-node:~# service nova-api restart
     nova-api stop/waiting
     nova-api start/running, process 7830
 
@@ -313,7 +314,7 @@ prevent spoofing and other nasty hacks, we have to:
 In order to do that you will need to connect to the VM from one of the
 internal nodes, since otherwise you will kick yourself out::
 
-    root@api-node:~# ssh network-node
+    root@compute-node:~# ssh network-node
     Welcome to Ubuntu 14.04.2 LTS (GNU/Linux 3.13.0-32-generic x86_64)
 
      * Documentation:  https://help.ubuntu.com/
@@ -442,7 +443,7 @@ Restart services::
     root@network-node:~# service neutron-plugin-openvswitch-agent restart
 
 Testing nova
-~~~~~~~~~~~~
+------------
 
 As usual, you can set the environment variables to use the ``neutron`` command line
 without having to specify the credentials via command line options::

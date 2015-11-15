@@ -1,5 +1,6 @@
+-----------------------------------
 Basic services (MySQL and RabbitMQ)
-===================================
+-----------------------------------
 
 ``db-node``
 -----------
@@ -26,7 +27,7 @@ unresponsive or broken.
 compared to OpenStack)*
 
 update system and install ntp package
-+++++++++++++++++++++++++++++++++++++
+-------------------------------------
 
 The following steps need to be done on all the machines. We are going
 to execute them step by step on the **db-node** only, and then we will
@@ -45,7 +46,7 @@ Update the system (can take a while...)::
 
 
 MySQL installation
-++++++++++++++++++
+------------------
 
 We are going to install both MySQL and RabbitMQ on the same server,
 but on a production environment you may want to have them installed on
@@ -129,7 +130,7 @@ using the ``netstat`` command. 3306 is the port MySQL listens to::
 
 
 RabbitMQ
-++++++++
+--------
 
 RabbitMQ is an implementation of the AMQP (Advanced Message Queuing
 Protocol), a networking protocol that enables conforming client
@@ -176,7 +177,7 @@ Please keep the connection to the db-node open as we will need to
 operate on it briefly.
 
 The message broker uses guest as default user name and password. You
-can change that password, or (better) create a completely new user::
+can change that password, or (better) create a completely new user:
 
 You should create a different user `openstack` with::
 

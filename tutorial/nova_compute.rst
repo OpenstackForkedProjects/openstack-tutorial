@@ -1,5 +1,6 @@
-Next: life of a VM (Compute service) - nova-compute
----------------------------------------------------
+---------------------------------------------
+life of a VM (Compute service) - nova-compute
+---------------------------------------------
 
 As we did for the network node before staring it is good to quickly
 check if the remote ssh execution of the commands done in the `all
@@ -8,7 +9,7 @@ section worked without problems. You can again verify it by checking
 the ntp installation.
 
 Nova-compute
-++++++++++++
+------------
 
 In the next few rows we try to briefly explain what happens behind the scene when a new request 
 for starting an OpenStack instance is done. Note that this is very high level description. 
@@ -47,7 +48,7 @@ for starting an OpenStack instance is done. Note that this is very high level de
 
    a) allocates a valid private ip
    b) instructs the plugin agent to implement the port and wire it to
-      the network interface to the VM[#]_
+      the network interface to the VM [#]_
 
 7) **nova-api** contacts *cinder* to provision the volume
 
@@ -61,13 +62,13 @@ for starting an OpenStack instance is done. Note that this is very high level de
 
 
 Software installation
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 
 Since we cannot use KVM because our compute nodes are virtualized and
 the host node does not support *nested virtualization*, we install
 **qemu** instead of **kvm**::
 
-    root@compute-1 # apt-get install -y nova-compute-qemu \
+    root@hypervisor-1 # apt-get install -y nova-compute-qemu \
       neutron-plugin-openvswitch-agent neutron-plugin-ml2 \
       python-libguestfs libguestfs-tools
 
@@ -80,7 +81,7 @@ dependencies.
    In order to allow the compute nodes to access the MySQL server you must 
    install the **MySQL python library**:: 
 
-       root@compute-1 # apt-get install -y python-mysqldb
+       root@hypervisor-1 # apt-get install -y python-mysqldb
 
 
 ..
@@ -113,11 +114,11 @@ dependencies.
 
    Start the bridge::
 
-       root@compute-1 # ifup br100
+       root@hypervisor-1 # ifup br100
 
    The **br100** interface should now be up&running::
 
-       root@compute-1 # ifconfig br100
+       root@hypervisor-1 # ifconfig br100
        br100     Link encap:Ethernet  HWaddr 52:54:00:c7:1a:7b  
                  inet6 addr: fe80::5054:ff:fec7:1a7b/64 Scope:Link
                  UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
@@ -129,13 +130,13 @@ dependencies.
    The following command will show you the physical interfaces associated
    to the **br100** bridge::
 
-       root@compute-1 # brctl show
+       root@hypervisor-1 # brctl show
        bridge name bridge id       STP enabled interfaces
        br100       8000.525400c71a7b   no      eth1
 
 
 nova configuration
-~~~~~~~~~~~~~~~~~~
+------------------
 
 The **nova-compute** daemon must be able to connect to the RabbitMQ
 and MySQL servers. The minimum information you have to provide in the
@@ -157,7 +158,7 @@ and MySQL servers. The minimum information you have to provide in the
 
     # Vnc configuration
     novnc_enabled=true
-    novncproxy_base_url=http://api-node:6080/vnc_auto.html
+    novncproxy_base_url=http://compute-node:6080/vnc_auto.html
     novncproxy_port=6080
     vncserver_proxyclient_address=10.0.0.20
     vncserver_listen=0.0.0.0
@@ -212,7 +213,7 @@ displayed above.
        admin_password = novaServ
 
 neutron on the compute node
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------
 
 To enable neutron for the nova-compute service you also have to ensure
 the following lines to are presents in ``/etc/nova/nova.conf``::
@@ -238,7 +239,7 @@ the following lines to are presents in ``/etc/nova/nova.conf``::
 
 Ensure the `br-int` bridge has been created by the installer::
 
-    root@compute-1:~# ovs-vsctl show
+    root@hypervisor-1:~# ovs-vsctl show
     62f8b342-8afa-4ce4-aa98-e2ab671d2837
         Bridge br-int
             fail_mode: secure
@@ -253,7 +254,7 @@ the following lines are present in ``/etc/sysctl.conf`` file.
 This file is read during the startup, but it is not read
 afterwards. To force Linux to re-read the file you can run::
 
-    root@compute-1:~# sysctl -p /etc/sysctl.conf
+    root@hypervisor-1:~# sysctl -p /etc/sysctl.conf
     net.ipv4.conf.all.rp_filter=0
     net.ipv4.conf.default.rp_filter=0
 
@@ -325,16 +326,16 @@ The ML2 plugin is configured in
 
 Restart `nova-compute` and the neutron agent::
 
-    root@compute-1:~# service nova-compute restart
+    root@hypervisor-1:~# service nova-compute restart
     nova-compute stop/waiting
     nova-compute start/running, process 17740
 
-    root@compute-1:~# service neutron-plugin-openvswitch-agent restart
+    root@hypervisor-1:~# service neutron-plugin-openvswitch-agent restart
     neutron-plugin-openvswitch-agent stop/waiting
     neutron-plugin-openvswitch-agent start/running, process 17788
 
 nova-compute configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------
 
 Ensure that the the ``/etc/nova/nova-compute.conf`` has the correct
 libvirt type. For our setup this file should only contain::
@@ -378,37 +379,37 @@ to guest in the virtual BIOS is the file /etc/machine-id, falling back to the
 libvirt reported host UUID. If your compute node does not contain a valid
 /etc/machine-id file, generate one with the following command:
 
-    root@compute-1:~# uuidgen > /etc/machine-id
+    root@hypervisor-1:~# uuidgen > /etc/machine-id
 
 For further details: https://wiki.openstack.org/wiki/OSSN/OSSN-0028
 
 
 Final check
-~~~~~~~~~~~
+-----------
 
 After restarting the **nova-compute** service::
 
-    root@compute-1 # service nova-compute restart
+    root@hypervisor-1 # service nova-compute restart
 
-you should be able to see the compute node from the **api-node**::
+you should be able to see the compute node from the **compute-node**::
 
-    root@api-node:~# nova-manage service list
+    root@compute-node:~# nova-manage service list
     Binary           Host                                 Zone             Status     State Updated_At
-    nova-cert        api-node                             internal         enabled    :-)   2013-08-13 13:43:35
-    nova-conductor   api-node                             internal         enabled    :-)   2013-08-13 13:43:31
-    nova-consoleauth api-node                             internal         enabled    :-)   2013-08-13 13:43:35
-    nova-scheduler   api-node                             internal         enabled    :-)   2013-08-13 13:43:35
-    nova-compute     compute-1                            nova             enabled    :-)   None      
+    nova-cert        compute-node                             internal         enabled    :-)   2013-08-13 13:43:35
+    nova-conductor   compute-node                             internal         enabled    :-)   2013-08-13 13:43:31
+    nova-consoleauth compute-node                             internal         enabled    :-)   2013-08-13 13:43:35
+    nova-scheduler   compute-node                             internal         enabled    :-)   2013-08-13 13:43:35
+    nova-compute     hypervisor-1                            nova             enabled    :-)   None      
 
 You should also see the openvswitch agent from the output of `neutron
 agent-list`::
 
-    root@api-node:~# neutron agent-list
+    root@compute-node:~# neutron agent-list
     +--------------------------------------+--------------------+--------------+-------+----------------+---------------------------+
     | id                                   | agent_type         | host         | alive | admin_state_up | binary                    |
     +--------------------------------------+--------------------+--------------+-------+----------------+---------------------------+
     | 33a35494-180c-43e4-8c05-8b67011b4943 | Metadata agent     | network-node | :-)   | True           | neutron-metadata-agent    |
-    | 7e238cc3-641e-48ba-83f4-1d825d4a5519 | Open vSwitch agent | compute-1    | :-)   | True           | neutron-openvswitch-agent |
+    | 7e238cc3-641e-48ba-83f4-1d825d4a5519 | Open vSwitch agent | hypervisor-1    | :-)   | True           | neutron-openvswitch-agent |
     | 82193fd4-b1e8-4248-912a-d736431ab077 | L3 agent           | network-node | :-)   | True           | neutron-l3-agent          |
     | bf45584a-8b4d-42f9-848c-2928821d4e28 | DHCP agent         | network-node | :-)   | True           | neutron-dhcp-agent        |
     | c45fecd8-e893-4dd9-9427-7d561697b8c4 | Open vSwitch agent | network-node | :-)   | True           | neutron-openvswitch-agent |
@@ -419,7 +420,7 @@ agent-list`::
 Testing OpenStack
 -----------------
 
-We will test OpenStack first from the **api-node** using the command
+We will test OpenStack first from the **compute-node** using the command
 line interface, and then from the physical node connecting to the web
 interface.
 
@@ -428,14 +429,14 @@ The first thing we need to do is to create a ssh keypair and upload
 the public key on OpenStack so that we can connect to the instance.
 The command to create a ssh keypair is ``ssh-keygen``::
 
-    root@api-node:~# ssh-keygen -t rsa -f ~/.ssh/id_rsa
+    root@compute-node:~# ssh-keygen -t rsa -f ~/.ssh/id_rsa
     Generating public/private rsa key pair.
     Enter passphrase (empty for no passphrase): 
     Enter same passphrase again: 
     Your identification has been saved in /root/.ssh/id_rsa.
     Your public key has been saved in /root/.ssh/id_rsa.pub.
     The key fingerprint is:
-    fa:86:74:77:a2:55:29:d8:e7:06:4a:13:f7:ca:cb:12 root@api-node
+    fa:86:74:77:a2:55:29:d8:e7:06:4a:13:f7:ca:cb:12 root@compute-node
     The key's randomart image is:
     +--[ RSA 2048]----+
     |                 |
@@ -452,28 +453,28 @@ The command to create a ssh keypair is ``ssh-keygen``::
 Then we have to create an OpenStack keypair and upload our *public*
 key. This is done using ``nova keypair-add`` command::
 
-    root@api-node:~# nova keypair-add gridka-api-node --pub-key ~/.ssh/id_rsa.pub
+    root@compute-node:~# nova keypair-add gridka-compute-node --pub-key ~/.ssh/id_rsa.pub
 
 you can check that the keypair has been created with::
 
-    root@api-node:~# nova keypair-list
+    root@compute-node:~# nova keypair-list
     +-----------------+-------------------------------------------------+
     | Name            | Fingerprint                                     |
     +-----------------+-------------------------------------------------+
-    | gridka-api-node | fa:86:74:77:a2:55:29:d8:e7:06:4a:13:f7:ca:cb:12 |
+    | gridka-compute-node | fa:86:74:77:a2:55:29:d8:e7:06:4a:13:f7:ca:cb:12 |
     +-----------------+-------------------------------------------------+
 
 Let's get the ID of the available images, flavors and security
 groups::
 
-    root@api-node:~# nova image-list
+    root@compute-node:~# nova image-list
     +--------------------------------------+--------------+--------+--------+
     | ID                                   | Name         | Status | Server |
     +--------------------------------------+--------------+--------+--------+
     | 79af6953-6bde-463d-8c02-f10aca227ef4 | cirros-0.3.0 | ACTIVE |        |
     +--------------------------------------+--------------+--------+--------+
 
-    root@api-node:~# nova flavor-list
+    root@compute-node:~# nova flavor-list
     +----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
     | ID | Name      | Memory_MB | Disk | Ephemeral | Swap | VCPUs | RXTX_Factor | Is_Public |
     +----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
@@ -485,7 +486,7 @@ groups::
     +----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
 
 
-    root@api-node:~# nova secgroup-list
+    root@compute-node:~# nova secgroup-list
     +---------+-------------+
     | Name    | Description |
     +---------+-------------+
@@ -496,8 +497,8 @@ groups::
 
 Now we are ready to start our first instance::
 
-    root@api-node:~# nova boot --image 79af6953-6bde-463d-8c02-f10aca227ef4 \
-      --security-group default --flavor m1.tiny --key_name gridka-api-node server-1
+    root@compute-node:~# nova boot --image 79af6953-6bde-463d-8c02-f10aca227ef4 \
+      --security-group default --flavor m1.tiny --key_name gridka-compute-node server-1
     +-------------------------------------+--------------------------------------+
     | Property                            | Value                                |
     +-------------------------------------+--------------------------------------+
@@ -520,7 +521,7 @@ Now we are ready to start our first instance::
     | updated                             | 2013-08-19T09:37:34Z                 |
     | hostId                              |                                      |
     | OS-EXT-SRV-ATTR:host                | None                                 |
-    | key_name                            | gridka-api-node                      |
+    | key_name                            | gridka-compute-node                      |
     | OS-EXT-SRV-ATTR:hypervisor_hostname | None                                 |
     | name                                | server-1                             |
     | adminPass                           | k7cT4nnC6sJU                         |
@@ -532,21 +533,21 @@ Now we are ready to start our first instance::
 This command returns immediately, even if the OpenStack instance is
 not yet started::
 
-    root@api-node:~# nova list
+    root@compute-node:~# nova list
     +--------------------------------------+----------+--------+----------+
     | ID                                   | Name     | Status | Networks |
     +--------------------------------------+----------+--------+----------+
     | 8e680a03-34ac-4292-a23c-d476b209aa62 | server-1 | BUILD  |          |
     +--------------------------------------+----------+--------+----------+
 
-    root@api-node:~# nova list
+    root@compute-node:~# nova list
     +--------------------------------------+----------+--------+----------------------------+
     | ID                                   | Name     | Status | Networks                   |
     +--------------------------------------+----------+--------+----------------------------+
     | d2ef7cbf-c506-4c67-a6b6-7bd9fecbe820 | server-1 | BUILD  | net1=10.99.0.2, 172.16.1.1 |
     +--------------------------------------+----------+--------+----------------------------+
 
-    root@api-node:~# nova list
+    root@compute-node:~# nova list
     +--------------------------------------+----------+--------+----------------------------+
     | ID                                   | Name     | Status | Networks                   |
     +--------------------------------------+----------+--------+----------------------------+
@@ -558,7 +559,7 @@ running on a compute node. However, the boot process
 can take some time, so don't worry if the following command will fail
 a few times before you can actually connect to the instance::
 
-    root@api-node:~# ssh 172.16.1.1
+    root@compute-node:~# ssh 172.16.1.1
     The authenticity of host '172.16.1.1 (172.16.1.1)' can't be established.
     RSA key fingerprint is 38:d2:4c:ee:31:11:c1:1a:0f:b6:3b:dc:f2:d2:46:8f.
     Are you sure you want to continue connecting (yes/no)? yes
@@ -571,14 +572,14 @@ Testing cinder
 
 You can attach a volume to a running instance easily::
 
-    root@api-node:~# nova volume-list
+    root@compute-node:~# nova volume-list
     +--------------------------------------+-----------+--------------+------+-------------+-------------+
     | ID                                   | Status    | Display Name | Size | Volume Type | Attached to |
     +--------------------------------------+-----------+--------------+------+-------------+-------------+
     | 180a081a-065b-497e-998d-aa32c7c295cc | available | test2        | 1    | None        |             |
     +--------------------------------------+-----------+--------------+------+-------------+-------------+
 
-    root@api-node:~# nova volume-attach server-1 180a081a-065b-497e-998d-aa32c7c295cc /dev/vdb
+    root@compute-node:~# nova volume-attach server-1 180a081a-065b-497e-998d-aa32c7c295cc /dev/vdb
     +----------+--------------------------------------+
     | Property | Value                                |
     +----------+--------------------------------------+
@@ -599,18 +600,18 @@ Start a virtual machine using euca2ools
 
 The command is similar to ``nova boot``::
 
-    root@api-node:~# euca-run-instances \
+    root@compute-node:~# euca-run-instances \
       --access-key 445f486efe1a4eeea2c924d0252ff269 \
       --secret-key ff98e8529e2543aebf6f001c74d65b17 \
-      -U http://api-node.example.org:8773/services/Cloud \
-      ami-00000001 -k gridka-api-node
+      -U http://compute-node.example.org:8773/services/Cloud \
+      ami-00000001 -k gridka-compute-node
     RESERVATION	r-e9cq9p1o	acdbdb11d3334ed987869316d0039856	default
-    INSTANCE	i-00000007	ami-00000001			pending	gridka-api-node (acdbdb11d3334ed987869316d0039856, None)	0	m1.small	2013-08-29T07:55:15.000Z	nova				monitoring-disabled					instance-store	
+    INSTANCE	i-00000007	ami-00000001			pending	gridka-compute-node (acdbdb11d3334ed987869316d0039856, None)	0	m1.small	2013-08-29T07:55:15.000Z	nova				monitoring-disabled					instance-store	
 
 Instances created by euca2ools are, of course, visible with nova as
 well::
 
-    root@api-node:~# nova list
+    root@compute-node:~# nova list
     +--------------------------------------+---------------------------------------------+--------+----------------------------+
     | ID                                   | Name                                        | Status | Networks                   |
     +--------------------------------------+---------------------------------------------+--------+----------------------------+
@@ -623,7 +624,7 @@ Working with Flavors
 We have already seen, that there are a number of predefined flavors available
 that provide certain classes of compute nodes and define number of vCPUs, RAM and disk.::
 
-    root@api-node:~# nova flavor-list
+    root@compute-node:~# nova flavor-list
     +----+-----------+-----------+------+-----------+------+-------+-------------+-----------+-------------+
     | ID | Name      | Memory_MB | Disk | Ephemeral | Swap | VCPUs | RXTX_Factor | Is_Public | extra_specs |
     +----+-----------+-----------+------+-----------+------+-------+-------------+-----------+-------------+
@@ -636,7 +637,7 @@ that provide certain classes of compute nodes and define number of vCPUs, RAM an
 
 In order to create a new flavor, use the CLI like so::
 
-    root@api-node:~# nova flavor-create --is-public true x1.tiny 6 256 2 1
+    root@compute-node:~# nova flavor-create --is-public true x1.tiny 6 256 2 1
     +----+---------+-----------+------+-----------+------+-------+-------------+-----------+-------------+
     | ID | Name    | Memory_MB | Disk | Ephemeral | Swap | VCPUs | RXTX_Factor | Is_Public | extra_specs |
     +----+---------+-----------+------+-----------+------+-------+-------------+-----------+-------------+
@@ -657,7 +658,7 @@ Where the parameters are like this::
 
 If we check the list again, we will see, that the flavor has been created::
 
-    root@api-node:~# nova flavor-list
+    root@compute-node:~# nova flavor-list
     +----+-----------+-----------+------+-----------+------+-------+-------------+-----------+-------------+
     | ID | Name      | Memory_MB | Disk | Ephemeral | Swap | VCPUs | RXTX_Factor | Is_Public | extra_specs |
     +----+-----------+-----------+------+-----------+------+-------+-------------+-----------+-------------+
@@ -679,7 +680,7 @@ command.
 
 First lets find a running instance::
 
-    root@api-node:~# nova list --all-tenants
+    root@compute-node:~# nova list --all-tenants
     +--------------------------------------+---------+--------+----------------------------+
     | ID                                   | Name    | Status | Networks                   |
     +--------------------------------------+---------+--------+----------------------------+
@@ -688,20 +689,20 @@ First lets find a running instance::
 
 and see what flavor it has::
 
-    root@api-node:~# nova show bf619ff4-303a-417c-9631-d7147dd50585
+    root@compute-node:~# nova show bf619ff4-303a-417c-9631-d7147dd50585
     +-------------------------------------+------------------------------------------------------------+
     | Property                            | Value                                                      |
     +-------------------------------------+------------------------------------------------------------+
     | status                              | ACTIVE                                                     |
     | updated                             | 2013-08-29T10:24:26Z                                       |
     | OS-EXT-STS:task_state               | None                                                       |
-    | OS-EXT-SRV-ATTR:host                | compute-1                                                  |
+    | OS-EXT-SRV-ATTR:host                | hypervisor-1                                                  |
     | key_name                            | antonio                                                    |
     | image                               | Cirros-0.3.0-x86_64 (a6d81f9c-8789-49da-a689-503b40bcd23c) |
     | hostId                              | ccc0c0738aea619c49a17654f911a9e2419848aece435cb7f117f666   |
     | OS-EXT-STS:vm_state                 | active                                                     |
     | OS-EXT-SRV-ATTR:instance_name       | instance-00000012                                          |
-    | OS-EXT-SRV-ATTR:hypervisor_hostname | compute-1                                                  |
+    | OS-EXT-SRV-ATTR:hypervisor_hostname | hypervisor-1                                                  |
     | flavor                              | m1.tiny (1)                                                |
     | id                                  | bf619ff4-303a-417c-9631-d7147dd50585                       |
     | security_groups                     | [{u'name': u'default'}]                                    |
@@ -722,20 +723,20 @@ and see what flavor it has::
 
 Now resisze the VM by specifying the new flavor ID::
 
-    root@api-node:~# nova resize bf619ff4-303a-417c-9631-d7147dd50585 6
+    root@compute-node:~# nova resize bf619ff4-303a-417c-9631-d7147dd50585 6
 
 While the server is resizing, its status will be RESIZING::
     
-    root@api-node:~# nova list --all-tenants
+    root@compute-node:~# nova list --all-tenants
 
 Once the resize operation is done, the status will change to VERIFY_RESIZE and you will have to confirm
 that the resize operation worked::
 
-    root@api-node:~# nova resize-confirm bf619ff4-303a-417c-9631-d7147dd50585
+    root@compute-node:~# nova resize-confirm bf619ff4-303a-417c-9631-d7147dd50585
 
 or, if things went wrong, revert the resize::
 
-    root@api-node:~# nova resize-revert bf619ff4-303a-417c-9631-d7147dd50585 
+    root@compute-node:~# nova resize-revert bf619ff4-303a-417c-9631-d7147dd50585 
 
 The status of the server will now be back to ACTIVE.
 

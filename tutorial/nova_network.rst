@@ -126,7 +126,7 @@ installation.
 
 
 Please note that nova-network service will use the same user and MySQL
-database we used for the ``api-node`` node, and since the old
+database we used for the ``compute-node`` node, and since the old
 ``nova-network`` service does not have any specific API we don't have
 to create a keystone service and endpoint for it.
 

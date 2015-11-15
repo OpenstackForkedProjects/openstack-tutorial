@@ -82,11 +82,11 @@ It should look like this::
         10.0.0.3    db-node
         10.0.0.4    auth-node
         10.0.0.5    image-node
-        10.0.0.6    api-node
+        10.0.0.6    compute-node
         10.0.0.7    network-node
         10.0.0.8    volume-node
-        10.0.0.20   compute-1
-        10.0.0.21   compute-2
+        10.0.0.20   hypervisor-1
+        10.0.0.21   hypervisor-2
 
 
 

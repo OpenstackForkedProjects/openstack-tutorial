@@ -1,5 +1,7 @@
+
+-----------------
 Tutorial overview
-=================
+-----------------
 
 During this tutorial, each one of you will have access to an OpenStack
 private cloud and will create one instance per service:
@@ -12,24 +14,27 @@ private cloud and will create one instance per service:
 * ``image-node``: runs **glance**, the image storage, composed of the
   *glance-api* and glance-registry* services
 
-* ``api-node``: runs most of the **nova** service: *nova-api*,
-  *horizon*, *nova-scheduler*, *nova-conductor* and *nova-console*.
+* ``compute-node``: runs most of the **nova** service: *nova-api*,
+  *nova-scheduler*, *nova-conductor* and *nova-console*. It also runs
+  the web frontend of OpenStack (*horizon*)
 
 * ``volume-node``: runs **cinder**, the volume manager, composed of
   the *cinder-api*, *cinder-scheduler* and *cinder-volume* services
 
 * ``neutron-node``: runs **neutron**, the NaaS manager. 
 
-* ``compute-1``: runs *nova-compute*
+* ``hypervisor-1``: runs *nova-compute*
 
-* ``compute-2``: runs *nova-compute*
+* ``hypervisor-2``: runs *nova-compute*
 
 Preparing the virtual machines
-++++++++++++++++++++++++++++++
+------------------------------
 
-Open the browser at http://cloud-test.gc3.uzh.ch and login using your
-UZH `WebPass` login and password. Each one of you will have a tenant
-on its own.
+Open the browser at http://130.60.24.173/horizon and login using one
+of the very secret login/password we gave you. Each one of you will
+have a project on its own, called `projectNN` and an user belonging to
+that project, called `userNN`. The teacher will use `user01` and
+`project01`.
 
 The next step is to create the networks we will need, and start the
 virtual machines.
@@ -38,60 +43,39 @@ In order, you will need to:
 
 * import a keypair, needed to access the virtual machines via ssh
 
-* create 1 internal networks:
-  - `internal`: each node will talk to the internal services using
-    this network. Enable DHCP and choose the IP range you like.
+* create an `internal` network for your VMs.
+
+* create a router, with gateway to `uzh-public` network
+
+* add an interface to `internal` to your router
 
 * ensure the default security groups allow you to access via ssh
 
 * start the following virtual machines, using the image
-  `ubuntu-14.04-cloudarchive`:
+  `ubuntu-trusty`:
 
-  * `db-node`, networks:
-    - vlan842
-    - internal
+  * `db-node`
 
-  * `auth-node`, networks:
-    - vlan842
-    - internal
+  * `auth-node`
 
-  * `image-node`, networks:
-    - vlan842
-    - internal
+  * `image-node`
 
-  * `api-node`, networks:
-    - vlan842
-    - internal
+  * `compute-node`
 
-  * `volume-node`, networks:
-    - vlan842
-    - internal
+  * `volume-node`
 
-  * `network-node`, networks:
-    - vlan842
-    - internal
+  * `network-node`
     
-  * `compute-1`, networks:
-    - vlan842
-    - internal
+  * `hypervisor-1
     
-  * `compute-2`, networks:
-    - vlan842
-    - internal
+  * `hypervisor-2`
     
-The image `ubuntu-14.04-cloudarchive` is an Ubuntu 14.04.2
-Ubuntu 14.04 with a few services already configured:
-
-* ntp
-
-* proxy (vlan842 network is a routable network, but cannot access the
-  internet)
-
-* repository for OpenStack Juno
+The image `ubuntu-trusty` is a bare Ubuntu 14.04.3, so we will have to
+install everything from scrach.
 
 
 Start the Virtual Machines
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------
 
 You can create the virtual machines either via web interface or, if
 you install on your laptop the following packages, also from the
@@ -110,7 +94,6 @@ Assuming you already created the networks::
     | ID                                   | Label       | CIDR |
     +--------------------------------------+-------------+------+
     | 890bbbf3-8fcd-40e4-b0b3-c2a4c9c52e35 | internal    | None |
-    | 8cf2499c-4d99-4623-a482-a762bacd862d | vlan842     | None |
     +--------------------------------------+-------------+------+
 
 and you have a keypair named `antonio`, you can start the `db-node`
@@ -150,7 +133,7 @@ with the following command::
 
 
 Access the Virtual Machines
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------
 
 If you setup the keypair properly, and you started the virtual machine
 with that keypair, you can login on the virtual machine using the IP
@@ -178,7 +161,7 @@ as `root`::
 
 
 Network Setup
-+++++++++++++
+-------------
 
 **IMPORTANT NOTE**: each virtual machine has an interface in
 `vlan842`. This is the only OpenStack network that is connected to a
@@ -186,8 +169,8 @@ Network Setup
 the virtual machines. 
 
 It is also the network we will use as `public` network (for floating
-IPs, and to give access to the VMs we will create on `compute-1` and
-`compute-2`).
+IPs, and to give access to the VMs we will create on `hypervisor-1` and
+`hypervisor-2`).
 
 In a real-world installation, only the nodes facing the internet will
 have an interface on a public network. Specifically:
@@ -195,7 +178,7 @@ have an interface on a public network. Specifically:
 +--------------+---------------------------------+
 | node         | service requiring public access |
 +==============+=================================+
-| api-node     | nova-api                        |
+| compute-node | nova-api, horizon               |
 +--------------+---------------------------------+
 | volume-node  | cinder-api                      |
 +--------------+---------------------------------+
@@ -210,6 +193,8 @@ have an interface on a public network. Specifically:
 This is the list of networks we will use:
 
 +------+-----------------------+-------------------------------------------------+
+| iface| network               | IP range                                        |
++======+=======================+=================================================+
 | eth0 | vlan842               | 172.23.0.0/16 for VMs, automatically assigned   |
 |      |                       | range 172.23.99.0/24 used for floating IPs      |
 +------+-----------------------+-------------------------------------------------+
@@ -263,8 +248,6 @@ Then, add this file to ``/etc/hosts`` on all the machines::
     (cloud)(cred:tutorial)antonio@kenny:~$ for ip in $IPS; do cat /tmp/hosts | ssh root@$ip 'cat >> /etc/hosts'; done
 
 
-`Next: Installation of basic services <basic_services.rst>`_
-
 ..
    Installation:
    -------------
@@ -276,9 +259,9 @@ Then, add this file to ``/etc/hosts`` on all the machines::
    * ``db-node``: MySQL + RabbitMQ,
    * ``auth-node``: keystone,
    * ``image-node``: glance,
-   * ``api-node``: nova-api, nova-scheduler,
+   * ``compute-node``: nova-api, nova-scheduler,
    * ``network-node``: nova-network,
    * ``volume-node``: cinder,
-   * ``compute-1``: nova-compute,
-   * ``compute-2``: nova-compute,
+   * ``hypervisor-1``: nova-compute,
+   * ``hypervisor-2``: nova-compute,
 

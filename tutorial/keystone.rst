@@ -1,3 +1,4 @@
+--------------------------
 Keystone: Identity service
 --------------------------
 
@@ -47,7 +48,7 @@ without problems::
 which confirmed ntp is installed as required.
 
 Keystone
-++++++++
+--------
 
 Keystone stores information about different, independent services:
 
@@ -150,7 +151,7 @@ while to enable also DEBUG messages, add::
 
 
 The chicken and egg problem
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------
 
 In order to create users, projects or roles in keystone you need to
 access it using an administrative user (which is not automatically
@@ -181,7 +182,7 @@ the admin token, we will set the following environment variables::
 
 
 Creation of the admin user
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------
 
 In order to work with keystone we have to create an admin user and
 a few basic projects and roles.
@@ -269,7 +270,7 @@ completion, so you have to check it using ``user-role-list`` command::
 
 
 Creation of the endpoint
-~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------
 
 Keystone is not only used to store information about users, passwords
 and projects, but also to store a catalog of the available services
@@ -386,7 +387,7 @@ Further information about the keystone service can be found at in the
 `official documentation <http://docs.openstack.org/icehouse/install-guide/install/apt/content/ch_keystone.html>`_
 
 Removing the admin token
-~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------
 
 Once you have a keystone admin user you should *disable* the admin
 token. To do that, you have to edit the

@@ -59,7 +59,7 @@ the endpoint::
 
     >>> ec2access='445f486efe1a4eeea2c924d0252ff269'
     >>> ec2secret='ff98e8529e2543aebf6f001c74d65b17'
-    >>> ec2host='api-node.example.org'
+    >>> ec2host='compute-node.example.org'
     >>> ec2port=8773
     >>> ec2path='/services/Cloud'
 
@@ -85,14 +85,14 @@ needed::
 To get a list of all the available keypairs, you can run::
 
     >>> conn.get_all_key_pairs()
-    [KeyPair:gridka-api-node]
+    [KeyPair:gridka-compute-node]
 
 This method (as many others) returns a list, even if it only contain a
 single element. Let's try to access it::
 
     >>> keypairs = conn.get_all_key_pairs()
     >>> keypairs[0].name
-    u'gridka-api-node'
+    u'gridka-compute-node'
     >>> keypairs[0].fingerprint
     u'89:37:b8:f2:32:2f:aa:52:06:55:c2:ad:66:83:3a:d6'
 
@@ -116,7 +116,7 @@ images::
 
 You can start a virtual machine starting from the image too::
 
-    >>> res = images[0].run(key_name='gridka-api-node', instance_type='m1.tiny')
+    >>> res = images[0].run(key_name='gridka-compute-node', instance_type='m1.tiny')
 
 The object returned is called *reservation*. There is no concept of
 reservation on OpenStack, but everytime you get a list of instances
@@ -143,7 +143,7 @@ You can terminate the instance by using the ``terminate()`` method::
 
 A list of all running instances is accessible using::
 
-    >>> res = images[0].run(key_name='gridka-api-node', instance_type='m1.small')
+    >>> res = images[0].run(key_name='gridka-compute-node', instance_type='m1.small')
     >>> reservations = conn.get_all_instances()
     >>> reservations
     [Reservation:r-377mzb0g]
@@ -163,4 +163,4 @@ with OpenStack.
 
 Starting a couple VMs at the same time is quite easy now::
 
-    >>> for i in range(10): images[0].run(key_name='gridka-api-node')
+    >>> for i in range(10): images[0].run(key_name='gridka-compute-node')

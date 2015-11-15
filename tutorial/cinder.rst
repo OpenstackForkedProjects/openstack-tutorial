@@ -1,13 +1,11 @@
+------------------------------
 Cinder - Block storage service
-==============================
+------------------------------
 
 As we did for the image node before staring it is good to quickly
 check if the remote ssh execution of the commands done in the `all
 nodes installation <basic_services.rst#all-nodes-installation>`_ section worked without problems. You can again
 verify it by checking the ntp installation.
-
-Cinder
-++++++
 
 **Cinder** is the name of the OpenStack block storage service. It
 allows manipulation of volumes, volume types (similar to compute
@@ -66,7 +64,7 @@ The **volume-node** has one more disk (``/dev/vdb``) which will use to
 create a LVM volume group to store the logical volumes created by cinder.
 
 cinder database and keystone setup
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------------
 
 As usual, we need to create a database on the **db-node** and an user
 in keystone.
@@ -188,7 +186,7 @@ We should now have three endpoints on keystone::
     +----------------------------------+-----------+------------------------------------------------------+---------------------------------------+------------------------------------------------------+----------------------------------+
 
 Add a volume to volume-node instance
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------------
 
 You can do this via web interface::
 
@@ -223,7 +221,7 @@ You can do this via web interface::
     +----------+--------------------------------------+
 
 basic configuration
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 Let's now go back to the  **volume-node** and install the cinder
 packages::
@@ -284,7 +282,7 @@ check that the volume group has been created::
       VG UUID               NGrgtl-thWL-4icP-r42k-vLnk-PjDV-mHmEkR
 
 cinder configuration
-~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 ..
    In file ``/etc/cinder/api-paste.ini`` edit the **filter:authtoken**
@@ -372,7 +370,7 @@ Restart cinder services::
 
 
 Testing cinder
-~~~~~~~~~~~~~~
+--------------
 
 Cinder command line tool also allow you to pass user, password, tenant
 name and authentication URL both via command line options or
