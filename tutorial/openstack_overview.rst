@@ -47,7 +47,8 @@ nova-compute
     responsible of actual managing the OpenStack instances. It 
     supports different hypervisors. More information `here
     <http://docs.openstack.org/admin-guide-cloud/compute_arch.html#hypervisors>`_.
-    The most commonly used is KVM but due to limitation in our setup we
+    The most commonly used is KVM but due to limitation in our setup
+    (nested virtualization) we
     will use qemu.
 
 glance

@@ -27,6 +27,11 @@ private cloud and will create one instance per service:
 
 * ``hypervisor-2``: runs *nova-compute*
 
+However, due to limitation on the number of public IPs we have
+available on the testbed, we will create one single VM with a floating
+IP and will use this to forward the manage the OpenStack VMs and to
+forward traffic destinated to the API to the correct VM.
+
 Preparing the virtual machines
 ------------------------------
 
