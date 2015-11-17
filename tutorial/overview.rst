@@ -163,6 +163,54 @@ Set the router to act as a gateway for the uzh-public network::
     neutron router-gateway-set openstack-public-to-internet uzh-public
     Set gateway for router openstack-public-to-internet
 
+Now we go on with creating the network which will simulate the private network of the OpenStack installation::
+
+     neutron net-create openstack-priv
+     Created a new network:
+     +-----------------+--------------------------------------+
+     | Field           | Value                                |
+     +-----------------+--------------------------------------+
+     | admin_state_up  | True                                 |
+     | id              | d2af2831-6a4e-4672-8a9b-022958ebc870 |
+     | mtu             | 0                                    |
+     | name            | openstack-priv                       |
+     | router:external | False                                |
+     | shared          | False                                |
+     | status          | ACTIVE                               |
+     | subnets         |                                      |
+     | tenant_id       | f4c492a4c3744a85bc654ecbe592d478     |
+     +-----------------+--------------------------------------+
+
+Create a subnet in the network we have just created:: 
+
+     neutron subnet-create openstack-priv 192.168.1.0/24 --name openstack-priv-subnet --allocation-pool start=192.168.1.3,end=192.168.1.254 --enable-dhcp --no-gateway
+     Created a new subnet:
+     +-------------------+--------------------------------------------------+
+     | Field             | Value                                            |
+     +-------------------+--------------------------------------------------+
+     | allocation_pools  | {"start": "192.168.1.3", "end": "192.168.1.254"} |
+     | cidr              | 192.168.1.0/24                                   |
+     | dns_nameservers   |                                                  |
+     | enable_dhcp       | True                                             |
+     | gateway_ip        |                                                  |
+     | host_routes       |                                                  |
+     | id                | 8ca24812-d535-4fa3-a094-90be24deaf91             |
+     | ip_version        | 4                                                |
+     | ipv6_address_mode |                                                  |
+     | ipv6_ra_mode      |                                                  |
+     | name              | openstack-priv-subnet                            |
+     | network_id        | d2af2831-6a4e-4672-8a9b-022958ebc870             |
+     | subnetpool_id     |                                                  |
+     | tenant_id         | f4c492a4c3744a85bc654ecbe592d478                 |
+     +-------------------+--------------------------------------------------+
+
+In our setup we are going to use a VM as a gateway for the private network so first we have to create that VM and allocate one IP on the openstack-public and one on the openstack-priv network. So please do so from the GUI. 
+
+Once the VM is up and running take note of the IP assigned on the openstack-priv network and change the private network to use that IP as a gateway::
+
+     neutron subnet-update openstack-priv-subnet --host-route destination=0.0.0.0/0,nexthop=<IP_OF_THE_VM_ON_THE_PRIV_NETWORK>
+
+
 Assuming you already created the networks::
 
     (cloud)(cred:tutorial)antonio@kenny:~$ nova net-list
