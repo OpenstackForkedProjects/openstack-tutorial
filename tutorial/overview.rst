@@ -92,6 +92,77 @@ command line:
 * python-neutronclient
 * python-glanceclient
 
+Create the networks
+-------------------
+First of all create a network which will simualte the "public" network in real world scenario::
+
+   neutron net-create openstack-public
+
+   +-----------------+--------------------------------------+
+   | Field           | Value                                |
+   +-----------------+--------------------------------------+
+   | admin_state_up  | True                                 |
+   | id              | c5217907-ead8-4862-afda-bea30a79cb5a |
+   | mtu             | 0                                    |
+   | name            | openstack-public                     |
+   | router:external | False                                |
+   | shared          | False                                |
+   | status          | ACTIVE                               |
+   | subnets         |                                      |
+   | tenant_id       | f4c492a4c3744a85bc654ecbe592d478     |
+   +-----------------+--------------------------------------+
+
+Then create a subnet inside the network we have just created:: 
+
+   neutron subnet-create openstack-public 10.0.0.0/24 --name openstack-public-subnet --allocation-pool start=10.0.0.3,end=10.0.0.254 --enable-dhcp --gateway 10.0.0.1 
+   
+   Created a new subnet:
+   +-------------------+--------------------------------------------+
+   | Field             | Value                                      |
+   +-------------------+--------------------------------------------+
+   | allocation_pools  | {"start": "10.0.0.2", "end": "10.0.0.254"} |
+   | cidr              | 10.0.0.0/24                                |
+   | dns_nameservers   |                                            |
+   | enable_dhcp       | True                                       |
+   | gateway_ip        | 10.0.0.1                                   |
+   | host_routes       |                                            |
+   | id                | b832df6d-6d89-42a3-8471-c5bc971a8802       |
+   | ip_version        | 4                                          |
+   | ipv6_address_mode |                                            |
+   | ipv6_ra_mode      |                                            |
+   | name              | openstack-public-subnet                    |
+   | network_id        | c5217907-ead8-4862-afda-bea30a79cb5a       |
+   | subnetpool_id     |                                            |
+   | tenant_id         | f4c492a4c3744a85bc654ecbe592d478           |
+   +-------------------+--------------------------------------------+
+
+Create a router to be used of connecting the 'uzh-public' (so, Internet) to the 'openstack-public' network::
+  
+    neutron router-create openstack-public-to-internet
+
+    Created a new router:
+    +-----------------------+--------------------------------------+
+    | Field                 | Value                                |
+    +-----------------------+--------------------------------------+
+    | admin_state_up        | True                                 |
+    | external_gateway_info |                                      |
+    | id                    | 3024c6b6-daf5-4ce1-8456-1a29e80194c3 |
+    | name                  | openstack-public-to-internet         |
+    | routes                |                                      |
+    | status                | ACTIVE                               |
+    | tenant_id             | f4c492a4c3744a85bc654ecbe592d478     |
+    +-----------------------+--------------------------------------+
+
+Add an interface (it is like adding a physical patch) from the openstack-public-subnet to the router we have just created::
+
+    neutron router-interface-add openstack-public-to-internet openstack-public-subnet
+    Added interface 38f22ccf-88cd-4a4f-8719-82caad291b60 to router openstack-public-to-internet.
+
+Set the router to act as a gateway for the uzh-public network::
+
+    neutron router-gateway-set openstack-public-to-internet uzh-public
+    Set gateway for router openstack-public-to-internet
+
 Assuming you already created the networks::
 
     (cloud)(cred:tutorial)antonio@kenny:~$ nova net-list
