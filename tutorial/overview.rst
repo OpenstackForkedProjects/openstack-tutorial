@@ -203,12 +203,30 @@ Create a subnet in the network we have just created::
      | subnetpool_id     |                                                  |
      | tenant_id         | f4c492a4c3744a85bc654ecbe592d478                 |
      +-------------------+--------------------------------------------------+
-
-In our setup we are going to use a VM as a gateway for the private network so first we have to create that VM and allocate one IP on the openstack-public and one on the openstack-priv network. So please do so from the GUI. 
-
-Once the VM is up and running take note of the IP assigned on the openstack-priv network and change the private network to use that IP as a gateway::
-
+..
+     In our setup we are going to use a "bastion VM" as a gateway for the rest of the OpenStack services. In order to do this we have to assign a public floating IP on the uzh-public network. Since by default Ubuntu is bringing up only the first network interface and the routing between the "openstack-public" and the "uzh-public" is provided by the "openstack-public-to-internet" router when starting the VM we have to ensure that "openstack-public" is provided via NIC1 as shown on the picture. 
+     
+     .. image:: ../images/bastion_networking.png
+      
+     Start the "bastion VM" and assign a floating IP on the uzh-public network. 
+     
+     Login to the VM and configure the networking::
+     
+        root@bastion:~# dhclient eth1
+        root@bastion:~# iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+        root@bastion:~# iptables -A FORWARD -i eth1 -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+        root@bastion:~# iptables -A FORWARD -i eth0 -o eth1 -j ACCEPT
+        root@bastion:~# echo 1 > /proc/sys/net/ipv4/ip_forward
+     
+     You can persist those changes using iptables-save (part of the iptables-persistent debian package) and by setting "net.ipv4.ip_forward=1" in /etc/sysctl.conf. 
+     Once the VM is up and running take note of the IP assigned on the openstack-priv network and change the private network to use that IP as a gateway::                  
      neutron subnet-update openstack-priv-subnet --host-route destination=0.0.0.0/0,nexthop=<IP_OF_THE_VM_ON_THE_PRIV_NETWORK>
+     
+     There is a problem with this option since Neutron is blocking the forwared connections. 
+     Chain neutron-openvswi-s25c99e62-6 (1 references)
+     pkts bytes target     prot opt in     out     source               destination         
+     2159  176K RETURN     all  --  any    any     192.168.1.10         anywhere             MAC FA:16:3E:20:FC:5C /* Allow traffic from defined IP/MAC pairs. */
+     2919  245K DROP       all  --  any    any     anywhere             anywhere             /* Drop traffic without an IP/MAC allow rule. */
 
 
 Assuming you already created the networks::
