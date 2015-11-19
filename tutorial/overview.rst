@@ -98,19 +98,20 @@ First of all create a network which will simualte the "public" network in real w
 
    neutron net-create openstack-public
 
-   +-----------------+--------------------------------------+
-   | Field           | Value                                |
-   +-----------------+--------------------------------------+
-   | admin_state_up  | True                                 |
-   | id              | c5217907-ead8-4862-afda-bea30a79cb5a |
-   | mtu             | 0                                    |
-   | name            | openstack-public                     |
-   | router:external | False                                |
-   | shared          | False                                |
-   | status          | ACTIVE                               |
-   | subnets         |                                      |
-   | tenant_id       | f4c492a4c3744a85bc654ecbe592d478     |
-   +-----------------+--------------------------------------+
+   +-----------------------+--------------------------------------+
+   | Field                 | Value                                |
+   +-----------------------+--------------------------------------+
+   | admin_state_up        | True                                 |
+   | id                    | c5217907-ead8-4862-afda-bea30a79cb5a |
+   | mtu                   | 0                                    |
+   | name                  | openstack-public                     |
+   | port_security_enabled | True                                 |
+   | router:external       | False                                |
+   | shared                | False                                |
+   | status                | ACTIVE                               |
+   | subnets               |                                      |
+   | tenant_id             | f4c492a4c3744a85bc654ecbe592d478     |
+   +-----------------------+--------------------------------------+
 
 Then create a subnet inside the network we have just created:: 
 
@@ -138,7 +139,7 @@ Then create a subnet inside the network we have just created::
 
 Create a router to be used of connecting the 'uzh-public' (so, Internet) to the 'openstack-public' network::
   
-    neutron router-create openstack-public-to-internet
+    neutron router-create openstack-public-to-uzh-public
 
     Created a new router:
     +-----------------------+--------------------------------------+
@@ -147,7 +148,7 @@ Create a router to be used of connecting the 'uzh-public' (so, Internet) to the 
     | admin_state_up        | True                                 |
     | external_gateway_info |                                      |
     | id                    | 3024c6b6-daf5-4ce1-8456-1a29e80194c3 |
-    | name                  | openstack-public-to-internet         |
+    | name                  | openstack-public-to-uzh-public       |
     | routes                |                                      |
     | status                | ACTIVE                               |
     | tenant_id             | f4c492a4c3744a85bc654ecbe592d478     |
@@ -155,42 +156,44 @@ Create a router to be used of connecting the 'uzh-public' (so, Internet) to the 
 
 Add an interface (it is like adding a physical patch) from the openstack-public-subnet to the router we have just created::
 
-    neutron router-interface-add openstack-public-to-internet openstack-public-subnet
-    Added interface 38f22ccf-88cd-4a4f-8719-82caad291b60 to router openstack-public-to-internet.
+    neutron router-interface-add openstack-public-to-uzh-public openstack-public-subnet
+    Added interface 38f22ccf-88cd-4a4f-8719-82caad291b60 to router openstack-public-to-uzh-public.
 
 Set the router to act as a gateway for the uzh-public network::
 
-    neutron router-gateway-set openstack-public-to-internet uzh-public
-    Set gateway for router openstack-public-to-internet
+    neutron router-gateway-set openstack-public-to-uzh-public uzh-public
+    Set gateway for router openstack-public-to-uzh-public
 
 Now we go on with creating the network which will simulate the private network of the OpenStack installation::
 
      neutron net-create openstack-priv
      Created a new network:
-     +-----------------+--------------------------------------+
-     | Field           | Value                                |
-     +-----------------+--------------------------------------+
-     | admin_state_up  | True                                 |
-     | id              | d2af2831-6a4e-4672-8a9b-022958ebc870 |
-     | mtu             | 0                                    |
-     | name            | openstack-priv                       |
-     | router:external | False                                |
-     | shared          | False                                |
-     | status          | ACTIVE                               |
-     | subnets         |                                      |
-     | tenant_id       | f4c492a4c3744a85bc654ecbe592d478     |
-     +-----------------+--------------------------------------+
+     +-----------------------+--------------------------------------+
+     | Field                 | Value                                |
+     +-----------------------+--------------------------------------+
+     | admin_state_up        | True                                 |
+     | id                    | d2af2831-6a4e-4672-8a9b-022958ebc870 |
+     | mtu                   | 0                                    |
+     | port_security_enabled | True                                 |
+     | name                  | openstack-priv                       |
+     | router:external       | False                                |
+     | shared                | False                                |
+     | status                | ACTIVE                               |
+     | subnets               |                                      |
+     | tenant_id             | f4c492a4c3744a85bc654ecbe592d478     |
+     +-----------------------+--------------------------------------+
 
 Create a subnet in the network we have just created:: 
 
-     neutron subnet-create openstack-priv 192.168.1.0/24 --name openstack-priv-subnet --allocation-pool start=192.168.1.3,end=192.168.1.254 --enable-dhcp --no-gateway
+     neutron subnet-create openstack-priv 192.168.1.0/24 --name openstack-priv-subnet --dns-nameserver "130.60.128.3" --dns-nameserver "130.60.64.51" --allocation-pool start=192.168.1.3,end=192.168.1.254 --enable-dhcp --no-gateway
      Created a new subnet:
      +-------------------+--------------------------------------------------+
      | Field             | Value                                            |
      +-------------------+--------------------------------------------------+
      | allocation_pools  | {"start": "192.168.1.3", "end": "192.168.1.254"} |
      | cidr              | 192.168.1.0/24                                   |
-     | dns_nameservers   |                                                  |
+     | dns_nameservers   | 130.60.128.3                                     |
+     |                   | 130.60.64.51                                     |
      | enable_dhcp       | True                                             |
      | gateway_ip        |                                                  |
      | host_routes       |                                                  |
@@ -203,31 +206,42 @@ Create a subnet in the network we have just created::
      | subnetpool_id     |                                                  |
      | tenant_id         | f4c492a4c3744a85bc654ecbe592d478                 |
      +-------------------+--------------------------------------------------+
-..
-     In our setup we are going to use a "bastion VM" as a gateway for the rest of the OpenStack services. In order to do this we have to assign a public floating IP on the uzh-public network. Since by default Ubuntu is bringing up only the first network interface and the routing between the "openstack-public" and the "uzh-public" is provided by the "openstack-public-to-internet" router when starting the VM we have to ensure that "openstack-public" is provided via NIC1 as shown on the picture. 
-     
-     .. image:: ../images/bastion_networking.png
-      
-     Start the "bastion VM" and assign a floating IP on the uzh-public network. 
-     
-     Login to the VM and configure the networking::
-     
-        root@bastion:~# dhclient eth1
-        root@bastion:~# iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-        root@bastion:~# iptables -A FORWARD -i eth1 -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
-        root@bastion:~# iptables -A FORWARD -i eth0 -o eth1 -j ACCEPT
-        root@bastion:~# echo 1 > /proc/sys/net/ipv4/ip_forward
-     
-     You can persist those changes using iptables-save (part of the iptables-persistent debian package) and by setting "net.ipv4.ip_forward=1" in /etc/sysctl.conf. 
-     Once the VM is up and running take note of the IP assigned on the openstack-priv network and change the private network to use that IP as a gateway::                  
-     neutron subnet-update openstack-priv-subnet --host-route destination=0.0.0.0/0,nexthop=<IP_OF_THE_VM_ON_THE_PRIV_NETWORK>
-     
-     There is a problem with this option since Neutron is blocking the forwared connections. 
-     Chain neutron-openvswi-s25c99e62-6 (1 references)
-     pkts bytes target     prot opt in     out     source               destination         
-     2159  176K RETURN     all  --  any    any     192.168.1.10         anywhere             MAC FA:16:3E:20:FC:5C /* Allow traffic from defined IP/MAC pairs. */
-     2919  245K DROP       all  --  any    any     anywhere             anywhere             /* Drop traffic without an IP/MAC allow rule. */
 
+In our setup we are going to use a "bastion VM" as a gateway for the rest of the OpenStack services. Since by default Ubuntu is bringing up only the first network interface and the routing between the "openstack-public" and the "uzh-public" is provided by the "openstack-public-to-uzh-public" router when starting the VM we have to ensure that "openstack-public" is provided via NIC1 as shown on the picture. 
+    
+    .. image:: ../images/bastion_networking.png
+
+Once the VM is up and running take note of the IP assigned on the openstack-priv network and change the openstack-priv network to use that IP as a gateway::                  
+   neutron subnet-update openstack-priv-subnet --host-route destination=0.0.0.0/0,nexthop=<IP_OF_THE_BASTION_ON_THE_PRIV_NETWORK>
+
+Next step is disabling the security constrains Neutron is a applying in order to avoid arp spoofing. In our case this optsion will prevent MASQUERADING to work properly. In order to do this you have to find the port used from the bastion host on the openstack-priv network::
+
+   neutron port-list | grep <IP_OF_THE_BASTION_ON_THE_PRIV_NETWORK>
+   ede0a89a-4830-4780-a290-50c9cfd806a7 |      | fa:16:3e:18:93:cb | {"subnet_id": "c942c430-f819-4832-84a3-99da71323770", "ip_address": "<IP>"}
+
+Disable the security groups and port security on that port::
+
+   neutron port-update --no-security-groups --port-security-enabled=False ede0a89a-4830-4780-a290-50c9cfd806a7
+
+..    
+    There is a problem with this option since Neutron is blocking the forwared connections. 
+    Chain neutron-openvswi-s25c99e62-6 (1 references)
+    pkts bytes target     prot opt in     out     source               destination         
+    2159  176K RETURN     all  --  any    any     192.168.1.10         anywhere             MAC FA:16:3E:20:FC:5C /* Allow traffic from defined IP/MAC pairs. */
+    2919  245K DROP       all  --  any    any     anywhere             anywhere             /* Drop traffic without an IP/MAC allow rule. */
+    We fixed this by adding xtension_drivers = port_security in /etc/neutron/plugins/ml2/ml2_conf.ini. This will create the relative entry in the database so next time network is created the "port_security_enabled" filed will be available and operations over it will be grated 
+
+When done with this go on with assigning a floating IP on uzh-public network (can be done using the GUI)
+
+Login to the bastion VM and configure the masquerading::
+
+   root@bastion:~# dhclient eth1
+   root@bastion:~# iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+   root@bastion:~# iptables -A FORWARD -i eth1 -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+   root@bastion:~# iptables -A FORWARD -i eth0 -o eth1 -j ACCEPT
+   root@bastion:~# echo 1 > /proc/sys/net/ipv4/ip_forward
+
+You can persist those changes using iptables-save (part of the iptables-persistent debian package) and by setting "net.ipv4.ip_forward=1" in /etc/sysctl.conf. 
 
 Assuming you already created the networks::
 
