@@ -177,9 +177,13 @@ Create a subnet in the network we have just created::
 
 In our setup we are going to use a "bastion VM" as a gateway for the rest of the OpenStack services. Since by default Ubuntu is bringing up only the first network interface and the routing between the "openstack-public" and the "uzh-public" is provided by the "openstack-public-to-uzh-public" router when starting the VM we have to ensure that "openstack-public" is provided via NIC1 as shown on the picture. 
     
+
 .. image:: ../images/bastion_networking.png
 
-Once the VM is up and running take note of the IP assigned on the openstack-priv network and change the openstack-priv network to use that IP as a gateway::                  
+
+Once the VM is up and running take note of the IP assigned on the openstack-priv
+network and change the openstack-priv network to use that IP as a gateway::                  
+
    user@ubuntu:~$ neutron subnet-update openstack-priv-subnet --host-route destination=0.0.0.0/0,nexthop=<IP_OF_THE_BASTION_ON_THE_PRIV_NETWORK>
 
 Next step is disabling the security constrains Neutron is a applying in order to avoid arp spoofing. In our case this optsion will prevent MASQUERADING to work properly. In order to do this you have to find the port used from the bastion host on the openstack-priv network::
