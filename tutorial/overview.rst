@@ -27,10 +27,10 @@ private cloud and will create one instance per service:
 
 * ``hypervisor-2``: runs *nova-compute*
 
-However, due to limitation on the number of public IPs we have
-available on the testbed, we will create one single VM with a floating
-IP and will use this to forward the manage the OpenStack VMs and to
-forward traffic destinated to the API to the correct VM.
+However, due to limitation on the number of public IPs we have available 
+on the testbed, we will create one single bastion VM with a floating IP and
+use it to connect and manage the OpenStack VMs and also to forward traffic 
+destinated to the API to the correct VM.
 
 Preparing the virtual machines
 ------------------------------
@@ -38,49 +38,16 @@ Preparing the virtual machines
 Open the browser at http://cloud-test.s3it.uzh.ch/horizon and login using one
 of the very secret login/password we gave you. Each one of you will
 have a project on its own, called `projectNN` and an user belonging to
-that project, called `userNN`. The teacher will use `user01` and
-`project01`.
+that project, called `userNN`. The teacher will use `user01` and `project01` 
+while the tutor will user `user20` and `project20`.
 
-The next step is to create the networks we will need, and start the
-virtual machines.
+Since we are going to use the bastion host for connecting to the VMs where the 
+OpenStack services will be installed we have to be ensure ourself access is 
+to those VMs is possible. There are two different ways to achieve that:
 
-In order, you will need to:
-
-* import a keypair, needed to access the virtual machines via ssh
-
-* create an `internal` network for your VMs.
-
-* create a router, with gateway to `uzh-public` network
-
-* add an interface to `internal` to your router
-
-* ensure the default security groups allow you to access via ssh
-
-* start the following virtual machines, using the image
-  `ubuntu-trusty`:
-
-  * `db-node`
-
-  * `auth-node`
-
-  * `image-node`
-
-  * `compute-node`
-
-  * `volume-node`
-
-  * `network-node`
-    
-  * `hypervisor-1
-    
-  * `hypervisor-2`
-    
-The image `ubuntu-trusty` is a bare Ubuntu 14.04.3, so we will have to
-install everything from scrach.
-
-
-Start the Virtual Machines
---------------------------
+- enable the `ForwardAgent` in your ssh configuration,
+- create a new keypair on the bastion host and add it to
+  your account on https://test-cloud.s3it.uzh.ch.
 
 You can create the virtual machines either via web interface or, if
 you install on your laptop the following packages, also from the
@@ -92,11 +59,12 @@ command line:
 * python-neutronclient
 * python-glanceclient
 
-Create the networks
--------------------
+Hands-on preparing the environment
+----------------------------------
+
 First of all create a network which will simualte the "public" network in real world scenario::
 
-   neutron net-create openstack-public
+   user@ubuntu:~$ neutron net-create openstack-public
 
    +-----------------------+--------------------------------------+
    | Field                 | Value                                |
@@ -115,7 +83,7 @@ First of all create a network which will simualte the "public" network in real w
 
 Then create a subnet inside the network we have just created:: 
 
-   neutron subnet-create openstack-public 10.0.0.0/24 --name openstack-public-subnet --allocation-pool start=10.0.0.3,end=10.0.0.254 --enable-dhcp --gateway 10.0.0.1 
+   user@ubuntu:~$ neutron subnet-create openstack-public 10.0.0.0/24 --name openstack-public-subnet --allocation-pool start=10.0.0.3,end=10.0.0.254 --enable-dhcp --gateway 10.0.0.1 
    
    Created a new subnet:
    +-------------------+--------------------------------------------+
@@ -139,7 +107,7 @@ Then create a subnet inside the network we have just created::
 
 Create a router to be used of connecting the 'uzh-public' (so, Internet) to the 'openstack-public' network::
   
-    neutron router-create openstack-public-to-uzh-public
+    user@ubuntu:~$ neutron router-create openstack-public-to-uzh-public
 
     Created a new router:
     +-----------------------+--------------------------------------+
@@ -156,72 +124,72 @@ Create a router to be used of connecting the 'uzh-public' (so, Internet) to the 
 
 Add an interface (it is like adding a physical patch) from the openstack-public-subnet to the router we have just created::
 
-    neutron router-interface-add openstack-public-to-uzh-public openstack-public-subnet
+    user@ubuntu:~$ neutron router-interface-add openstack-public-to-uzh-public openstack-public-subnet
     Added interface 38f22ccf-88cd-4a4f-8719-82caad291b60 to router openstack-public-to-uzh-public.
 
 Set the router to act as a gateway for the uzh-public network::
 
-    neutron router-gateway-set openstack-public-to-uzh-public uzh-public
+    user@ubuntu:~$ neutron router-gateway-set openstack-public-to-uzh-public uzh-public
     Set gateway for router openstack-public-to-uzh-public
 
 Now we go on with creating the network which will simulate the private network of the OpenStack installation::
 
-     neutron net-create openstack-priv
-     Created a new network:
-     +-----------------------+--------------------------------------+
-     | Field                 | Value                                |
-     +-----------------------+--------------------------------------+
-     | admin_state_up        | True                                 |
-     | id                    | d2af2831-6a4e-4672-8a9b-022958ebc870 |
-     | mtu                   | 0                                    |
-     | port_security_enabled | True                                 |
-     | name                  | openstack-priv                       |
-     | router:external       | False                                |
-     | shared                | False                                |
-     | status                | ACTIVE                               |
-     | subnets               |                                      |
-     | tenant_id             | f4c492a4c3744a85bc654ecbe592d478     |
-     +-----------------------+--------------------------------------+
+    user@ubuntu:~$ neutron net-create openstack-priv
+    Created a new network:
+    +-----------------------+--------------------------------------+
+    | Field                 | Value                                |
+    +-----------------------+--------------------------------------+
+    | admin_state_up        | True                                 |
+    | id                    | d2af2831-6a4e-4672-8a9b-022958ebc870 |
+    | mtu                   | 0                                    |
+    | port_security_enabled | True                                 |
+    | name                  | openstack-priv                       |
+    | router:external       | False                                |
+    | shared                | False                                |
+    | status                | ACTIVE                               |
+    | subnets               |                                      |
+    | tenant_id             | f4c492a4c3744a85bc654ecbe592d478     |
+    +-----------------------+--------------------------------------+
 
 Create a subnet in the network we have just created:: 
 
-     neutron subnet-create openstack-priv 192.168.1.0/24 --name openstack-priv-subnet --dns-nameserver "130.60.128.3" --dns-nameserver "130.60.64.51" --allocation-pool start=192.168.1.3,end=192.168.1.254 --enable-dhcp --no-gateway
-     Created a new subnet:
-     +-------------------+--------------------------------------------------+
-     | Field             | Value                                            |
-     +-------------------+--------------------------------------------------+
-     | allocation_pools  | {"start": "192.168.1.3", "end": "192.168.1.254"} |
-     | cidr              | 192.168.1.0/24                                   |
-     | dns_nameservers   | 130.60.128.3                                     |
-     |                   | 130.60.64.51                                     |
-     | enable_dhcp       | True                                             |
-     | gateway_ip        |                                                  |
-     | host_routes       |                                                  |
-     | id                | 8ca24812-d535-4fa3-a094-90be24deaf91             |
-     | ip_version        | 4                                                |
-     | ipv6_address_mode |                                                  |
-     | ipv6_ra_mode      |                                                  |
-     | name              | openstack-priv-subnet                            |
-     | network_id        | d2af2831-6a4e-4672-8a9b-022958ebc870             |
-     | subnetpool_id     |                                                  |
-     | tenant_id         | f4c492a4c3744a85bc654ecbe592d478                 |
-     +-------------------+--------------------------------------------------+
+    user@ubuntu:~$ neutron subnet-create openstack-priv 192.168.1.0/24 --name openstack-priv-subnet --dns-nameserver "130.60.128.3" --dns-nameserver "130.60.64.51" --allocation-pool start=192.168.1.3,end=192.168.1.254 --enable-dhcp --no-gateway
+    Created a new subnet:
+    +-------------------+--------------------------------------------------+
+    | Field             | Value                                            |
+    +-------------------+--------------------------------------------------+
+    | allocation_pools  | {"start": "192.168.1.3", "end": "192.168.1.254"} |
+    | cidr              | 192.168.1.0/24                                   |
+    | dns_nameservers   | 130.60.128.3                                     |
+    |                   | 130.60.64.51                                     |
+    | enable_dhcp       | True                                             |
+    | gateway_ip        |                                                  |
+    | host_routes       |                                                  |
+    | id                | 8ca24812-d535-4fa3-a094-90be24deaf91             |
+    | ip_version        | 4                                                |
+    | ipv6_address_mode |                                                  |
+    | ipv6_ra_mode      |                                                  |
+    | name              | openstack-priv-subnet                            |
+    | network_id        | d2af2831-6a4e-4672-8a9b-022958ebc870             |
+    | subnetpool_id     |                                                  |
+    | tenant_id         | f4c492a4c3744a85bc654ecbe592d478                 |
+    +-------------------+--------------------------------------------------+
 
 In our setup we are going to use a "bastion VM" as a gateway for the rest of the OpenStack services. Since by default Ubuntu is bringing up only the first network interface and the routing between the "openstack-public" and the "uzh-public" is provided by the "openstack-public-to-uzh-public" router when starting the VM we have to ensure that "openstack-public" is provided via NIC1 as shown on the picture. 
     
-    .. image:: ../images/bastion_networking.png
+.. image:: ../images/bastion_networking.png
 
 Once the VM is up and running take note of the IP assigned on the openstack-priv network and change the openstack-priv network to use that IP as a gateway::                  
-   neutron subnet-update openstack-priv-subnet --host-route destination=0.0.0.0/0,nexthop=<IP_OF_THE_BASTION_ON_THE_PRIV_NETWORK>
+   user@ubuntu:~$ neutron subnet-update openstack-priv-subnet --host-route destination=0.0.0.0/0,nexthop=<IP_OF_THE_BASTION_ON_THE_PRIV_NETWORK>
 
 Next step is disabling the security constrains Neutron is a applying in order to avoid arp spoofing. In our case this optsion will prevent MASQUERADING to work properly. In order to do this you have to find the port used from the bastion host on the openstack-priv network::
 
-   neutron port-list | grep <IP_OF_THE_BASTION_ON_THE_PRIV_NETWORK>
+   user@ubuntu:~$ neutron port-list | grep <IP_OF_THE_BASTION_ON_THE_PRIV_NETWORK>
    ede0a89a-4830-4780-a290-50c9cfd806a7 |      | fa:16:3e:18:93:cb | {"subnet_id": "c942c430-f819-4832-84a3-99da71323770", "ip_address": "<IP>"}
 
 Disable the security groups and port security on that port::
 
-   neutron port-update --no-security-groups --port-security-enabled=False ede0a89a-4830-4780-a290-50c9cfd806a7
+   user@ubuntu:~$ neutron port-update --no-security-groups --port-security-enabled=False ede0a89a-4830-4780-a290-50c9cfd806a7
 
 ..    
     There is a problem with this option since Neutron is blocking the forwared connections. 
@@ -231,7 +199,7 @@ Disable the security groups and port security on that port::
     2919  245K DROP       all  --  any    any     anywhere             anywhere             /* Drop traffic without an IP/MAC allow rule. */
     We fixed this by adding xtension_drivers = port_security in /etc/neutron/plugins/ml2/ml2_conf.ini. This will create the relative entry in the database so next time network is created the "port_security_enabled" filed will be available and operations over it will be grated 
 
-When done with this go on with assigning a floating IP on uzh-public network (can be done using the GUI)
+When done with this go on with assigning a floating IP on uzh-public network. Please do it over the GUI, since more immediate.
 
 Login to the bastion VM and configure the masquerading::
 
@@ -241,92 +209,66 @@ Login to the bastion VM and configure the masquerading::
    root@bastion:~# iptables -A FORWARD -i eth0 -o eth1 -j ACCEPT
    root@bastion:~# echo 1 > /proc/sys/net/ipv4/ip_forward
 
-You can persist those changes using iptables-save (part of the iptables-persistent debian package) and by setting "net.ipv4.ip_forward=1" in /etc/sysctl.conf. 
+You can persist those changes using by:
 
-Assuming you already created the networks::
+- use iptables-save to save the iptables rules,
+- set net.ipv4.ip_forward=1 inside /etc/sysctl.conf. 
 
-    (cloud)(cred:tutorial)antonio@kenny:~$ nova net-list
-    +--------------------------------------+-------------+------+
-    | ID                                   | Label       | CIDR |
-    +--------------------------------------+-------------+------+
-    | 890bbbf3-8fcd-40e4-b0b3-c2a4c9c52e35 | internal    | None |
-    +--------------------------------------+-------------+------+
+Assuming everything worked smoothly in the steps above you can start with booting all the VMs we will need for setting up the OpenStack installation::
 
-and you have a keypair named `antonio`, you can start the `db-node`
-with the following command::
+    user@ubuntu:~$ nova net-list
+    +--------------------------------------+------------------+------+
+    | ID                                   | Label            | CIDR |
+    +--------------------------------------+------------------+------+
+    | 4cb131d5-5ece-4122-9014-ac069cd8d4a3 | uzh-public       | None |
+    | 5a3feca5-2be5-4943-8f9d-9f3b8eb74c35 | openstack-priv   | None |
+    | 7ff18d6e-12c1-41a9-b0c7-dabc7fc44eab | openstack-public | None |
+    +--------------------------------------+------------------+------+
 
-    (cloud)(cred:tutorial)antonio@kenny:~$ nova boot --key-name antonio --image ubuntu-14.04-cloudarchive --flavor m1.tiny --nic net-id=8cf2499c-4d99-4623-a482-a762bacd862d --nic net-id=890bbbf3-8fcd-40e4-b0b3-c2a4c9c52e35   db-node
-    +--------------------------------------+------------------------------------------------------------------+
-    | Property                             | Value                                                            |
-    +--------------------------------------+------------------------------------------------------------------+
-    | OS-DCF:diskConfig                    | MANUAL                                                           |
-    | OS-EXT-AZ:availability_zone          | nova                                                             |
-    | OS-EXT-STS:power_state               | 0                                                                |
-    | OS-EXT-STS:task_state                | scheduling                                                       |
-    | OS-EXT-STS:vm_state                  | building                                                         |
-    | OS-SRV-USG:launched_at               | -                                                                |
-    | OS-SRV-USG:terminated_at             | -                                                                |
-    | accessIPv4                           |                                                                  |
-    | accessIPv6                           |                                                                  |
-    | adminPass                            | 82sRSviCiR5u                                                     |
-    | config_drive                         |                                                                  |
-    | created                              | 2015-05-02T09:32:56Z                                             |
-    | flavor                               | m1.tiny (78342c00-6290-461e-8e56-357b59fbcf19)                   |
-    | hostId                               |                                                                  |
-    | id                                   | ebc906d3-cafb-4480-b165-8b35ae4774a0                             |
-    | image                                | ubuntu-14.04-cloudarchive (33805688-f142-4dc4-9865-6f4197bbd8ad) |
-    | key_name                             | antonio                                                          |
-    | metadata                             | {}                                                               |
-    | name                                 | db-node                                                          |
-    | os-extended-volumes:volumes_attached | []                                                               |
-    | progress                             | 0                                                                |
-    | security_groups                      | default                                                          |
-    | status                               | BUILD                                                            |
-    | tenant_id                            | 3b8231f6ab974adbbcd838042bbf63bd                                 |
-    | updated                              | 2015-05-02T09:32:56Z                                             |
-    | user_id                              | anmess                                                           |
-    +--------------------------------------+------------------------------------------------------------------+
+and you have a keypair named `bastion`, you can start the `db-node auth-node image-node volume-node api-node hypervisor-1 hypervisor-2` nodes with the following command::
 
+    user@ubuntu:~$ for i in db-node auth-node image-node volume-node api-node hypervisor-1 hypervisor-2; do nova boot --key-name bastion --image ubuntu-trusty --flavor m1.small --nic net-id=<ID_OF_THE_OPENSTACK_PRIV_NETWORK> $i; done
+
+Since the network node needs an interface on the openstack-public interface we have to start it seprately using the following command::
+
+    user@ubuntu:~$ nova boot --key-name bastion --image ubuntu-trusty --flavor m1.small --nic net-id=<ID_OF_THE_OPENSTACK_PRIV_NETWORK> --nic net-id=<ID_OF_THE_OPENSTACK_PUB_NETWORK>network-node
 
 Access the Virtual Machines
 ---------------------------
 
-If you setup the keypair properly, and you started the virtual machine
-with that keypair, you can login on the virtual machine using the IP
-address given in `vlan842` network.
+If you setup your access method correctly you should be able to login on all VMs from the bastion host.
 
-You can see the IP address of the VM via web interface or using `nova`
-command::
+You can see the IP address of the VM via web interface or using `nova` command::
 
-    (cloud)(cred:tutorial)antonio@kenny:~$ nova list
-    +--------------------------------------+---------+--------+------------+-------------+------------------------------------------+
-    | ID                                   | Name    | Status | Task State | Power State | Networks                                 |
-    +--------------------------------------+---------+--------+------------+-------------+------------------------------------------+
-    | ebc906d3-cafb-4480-b165-8b35ae4774a0 | db-node | ACTIVE | -          | Running     | internal=10.0.0.13; vlan842=172.23.4.169 |
-    +--------------------------------------+---------+--------+------------+-------------+------------------------------------------+
-
-you should be able to connect either using regular user `gc3-user` or
-as `root`::
-
-    (cloud)(cred:tutorial)antonio@kenny:~$ ssh root@172.23.4.169
-    Warning: Permanently added '172.23.4.169' (ECDSA) to the list of known hosts.
-    Welcome to Ubuntu 14.04.2 LTS (GNU/Linux 3.13.0-32-generic x86_64)
-
-     * Documentation:  https://help.ubuntu.com/
-    root@db-node:~# 
+    user@ubuntu:~$ nova list 
+    +--------------------------------------+--------------+--------+------------+-------------+----------------------------------------------------------------------+
+    | ID                                   | Name         | Status | Task State | Power State | Networks                                                             |
+    +--------------------------------------+--------------+--------+------------+-------------+----------------------------------------------------------------------+
+    | 728623a2-259b-46f7-a53e-9fcda839c75d | api-node     | ACTIVE | -          | Running     | openstack-priv=192.168.1.12                                          |
+    | 2b5659df-95c9-45af-b0b4-7190c71fc3b6 | auth-node    | ACTIVE | -          | Running     | openstack-priv=192.168.1.9                                           |
+    | 2b583336-1982-4055-bd50-b01568c4b033 | bastion      | ACTIVE | -          | Running     | openstack-priv=192.168.1.4; openstack-public=10.0.0.9, 130.60.24.111 |
+    | 4cc83df7-a27b-40c3-8de6-e1a0ec384c15 | db-node      | ACTIVE | -          | Running     | openstack-priv=192.168.1.8                                           |
+    | 67cf3888-20c9-45ec-a341-ab46a725a2eb | hypervisor-1 | ACTIVE | -          | Running     | openstack-priv=192.168.1.13                                          |
+    | 16111abc-728e-4e83-a77d-360b645db3ca | hypervisor-2 | ACTIVE | -          | Running     | openstack-priv=192.168.1.14                                          |
+    | 58510251-2c76-4795-9f02-1a6e93fddecd | image-node   | ACTIVE | -          | Running     | openstack-priv=192.168.1.10                                          |
+    | 079d5549-2799-49ca-9bb2-0fa11c419edd | network-node | ACTIVE | -          | Running     | openstack-priv=192.168.1.15; openstack-public=10.0.0.10              |
+    | 9504ef02-3897-4e7f-813b-bef14a7d68f5 | volume-node  | ACTIVE | -          | Running     | openstack-priv=192.168.1.11                                          |
+    +--------------------------------------+--------------+--------+------------+-------------+----------------------------------------------------------------------+
 
 
-Network Setup
+You should be able to connect from the bastion host using regular user `ubuntu`::
+
+    ubuntu@bastion:~$ ssh ubuntu@192.168.1.8
+    The authenticity of host '192.168.1.8 (192.168.1.8)' can't be established.
+    ECDSA key fingerprint is 5a:90:f5:aa:e7:61:63:d6:3b:ce:13:92:b9:32:5c:95.
+    Are you sure you want to continue connecting (yes/no)? yes
+    Warning: Permanently added '192.168.1.8' (ECDSA) to the list of known hosts.
+    Welcome to Ubuntu 14.04.3 LTS (GNU/Linux 3.13.0-68-generic x86_64)
+    ...
+    ubuntu@db-node:~$ 
+
+Network Notes
 -------------
-
-**IMPORTANT NOTE**: each virtual machine has an interface in
-`vlan842`. This is the only OpenStack network that is connected to a
-*real* network, and thus is the only network we can use to connect to
-the virtual machines. 
-
-It is also the network we will use as `public` network (for floating
-IPs, and to give access to the VMs we will create on `hypervisor-1` and
-`hypervisor-2`).
 
 In a real-world installation, only the nodes facing the internet will
 have an interface on a public network. Specifically:
@@ -351,23 +293,12 @@ This is the list of networks we will use:
 +------+-----------------------+-------------------------------------------------+
 | iface| network               | IP range                                        |
 +======+=======================+=================================================+
-| eth0 | vlan842               | 172.23.0.0/16 for VMs, automatically assigned   |
-|      |                       | range 172.23.99.0/24 used for floating IPs      |
+| eth0 | openstack-priv        | 192.168.1.3 - 192.168.1.254                     |
 +------+-----------------------+-------------------------------------------------+
-| eth1 | internal network      | 10.0.0.0/24                                     |
+| eth1 | openstack-public      | 10.0.0.3 - 10.0.0.254                           |
 +------+-----------------------+-------------------------------------------------+
 
-
-The *vlan842* is the network exposed to the UZH network. We will use
-it to access the VMs, that always have an IP in range
-172.23.4.0-172.23.10.254, automatically assigned by the `cloud-test`
-OpenStack, and on the network node we will also use the range
-172.23.99.0/24 for floating IPs that will be assigned to the VMs we
-create in your test cloud.
-
-The *internal network* is a trusted network used by all the OpenStack
-services to communicate to each other. Usually, you wouldn't setup a
-strict firewall on this ip address.
+FIXME: give better explanation of the networks.
 
 The *OpenStack private network* is the internal network of the
 OpenStack virtual machines. The virtual machines need to communicate
@@ -385,23 +316,24 @@ with the network node.
 The following diagram shows both the network layout of the physical
 machines and of the virtual machines running in it:
 
+FIXME: change diagram
+
 .. image:: ../images/network_diagram.png
 
-Since we are using DHCP for both external network `vlan842` and the
-`internal` networks, you should configure the ``/etc/hosts`` file on
-all of your virtual machines in order to be able to connect to them
-using only the hostname.
+Since we are using DHCP for both openstack-{priv,public} network,
+you should configure the ``/etc/hosts`` file on all of your virtual 
+machines in order to be able to connect to them using only the hostname.
 
-After you started all of your virtual machines, you could do something
-like::
+After you started all of your virtual machines, you could do something like::
 
-    (cloud)(cred:tutorial)antonio@kenny:~$ IPS=$(nova list --fields name,networks | grep vlan842|sed 's/.*vlan842=\(172.23.[0-9]\+\.[0-9]\+\).*/\1/g')
-    (cloud)(cred:tutorial)antonio@kenny:~$ for ip in $IPS; do echo "$ip $(ssh  root@${ip} hostname).example.org" >> /tmp/hosts; done
-    (cloud)(cred:tutorial)antonio@kenny:~$ for ip in $IPS; do priv=$(ssh root@$ip 'ifconfig eth1 | grep "inet addr" | sed "s/.*addr:\(10.0.0.[0-9]\+\).*/\1/g"'); host=$(ssh root@$ip hostname); echo "$priv $host" >> /tmp/hosts; done
+     FIXME: to be done over sshuttle?
+     user@ubuntu:~$ IPS=$(nova list --fields name,networks | grep openstack-priv|sed 's/.*openstack-priv=\(192.168.[0-9]\+\.[0-9]\+\).*/\1/g')
+     user@ubuntu:~$ for ip in $IPS; do echo "$ip $(ssh  root@${ip} hostname).example.org" >> /tmp/hosts; done
+     user@ubuntu:~$ for ip in $IPS; do priv=$(ssh root@$ip 'ifconfig eth1 | grep "inet addr" | sed "s/.*addr:\(10.0.0.[0-9]\+\).*/\1/g"'); host=$(ssh root@$ip hostname); echo "$priv $host" >> /tmp/hosts; done
 
 Then, add this file to ``/etc/hosts`` on all the machines::
 
-    (cloud)(cred:tutorial)antonio@kenny:~$ for ip in $IPS; do cat /tmp/hosts | ssh root@$ip 'cat >> /etc/hosts'; done
+    user@ubuntu:~$ for ip in $IPS; do cat /tmp/hosts | ssh root@$ip 'cat >> /etc/hosts'; done
 
 
 ..
