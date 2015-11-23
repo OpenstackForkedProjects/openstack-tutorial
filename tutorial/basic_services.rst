@@ -23,9 +23,6 @@ services, used by all the OpenStack components. If something is not
 working here, or not working properly, the whole cloud could be
 unresponsive or broken.
 
-*(good news is: these services are usually quite reliable, at least
-compared to OpenStack)*
-
 openstack liberty packages,system upgrade,NTP
 ----------------------------------------------
 
