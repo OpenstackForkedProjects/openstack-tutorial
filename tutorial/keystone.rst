@@ -52,7 +52,7 @@ Keystone
 
 Keystone stores information about different, independent services:
 
-* Users, passwords and tenants
+* users, passwords and tenants
 * authorization tokens
 * service catalog
 
@@ -62,7 +62,7 @@ tokens using `memcached
 and the service catalog on a file.
 
 However, the easiest way to configure keystone and possibly the most
-common is to use MySQL for all of them, therefore this is how we are
+common is to use MariaDB for all of them, therefore this is how we are
 going to configure it.
 
 On the **db-node** you need to create a database and a pair of user
@@ -70,24 +70,30 @@ and password for the keystone service::
 
     root@db-node:~# mysql -u root -p
     mysql> CREATE DATABASE keystone;
-    mysql> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY 'gridka';
+    mysql> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY 'openstack';
+    mysql> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY 'gridka';
     mysql> FLUSH PRIVILEGES;
     mysql> exit
-
-    ..
-       mysql> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY 'gridka';
 
 Please note that almost every OpenStack service will need a private
 database, which means that we are going to run commands similar to the
 previous one a lot of times.
 
-Go to the **auth-node** and install the keystone package::
+In Kilo and Liberty the eventlet is depricated in favor of a separate web server 
+with WSGI extentions. We will use the mod_wsgi module of Apache HTTP to provide
+requests on port 5000 and 35357. 
 
-    root@auth-node:~# aptitude install keystone python-mysqldb
+Go to the **auth-node** and as a first step disable the keystone service for starting 
+the automatically after installation:: 
 
-This step installes also the `keystone-pythonclient` package (as a
-dependency of the keystone package) which is the CLI for interactig
-with keystone.
+    echo "manual" > /etc/init/keystone.override
+
+Proceed with installing the keystone and all the needed packages:: 
+
+    root@auth-node:~# aptitude install keystone apache2 libapache2-mod-wsgi memcached python-memcache
+
+This step installes also the `keystone-pythonclient` package (as adependency of the keystone package)
+which is the CLI for interactig with keystone.
 
 ..
    **NOTE** Installing keystone *without* installing also
@@ -100,36 +106,97 @@ not going to be used and can be safely removed.::
 
     root@auth-node:~# rm /var/lib/keystone/keystone.db
  
-In order to use the MySQL database we just created, update the value
-of the ``connection`` option in section ``[database]`` of the
-``/etc/keystone/keystone.conf`` file, in order to match the hostname,
-database name, user and password we used. The syntax of this option
-is::
+In order to use the MariaDB database we just created, update the value of the ``connection`` option in
+section ``[database]`` of the ``/etc/keystone/keystone.conf`` file, in order to match the hostname,
+database name, user and password we used. The syntax of this option is::
 
     connection = <protocol>://<user>:<password>@<host>/<db_name>
 
 So in our case you need to replace the default option with::
 
-    connection = mysql://keystone:gridka@db-node/keystone
+    connection = mysql+pymysql://keystone:openstack@db-node/keystone
 
-Now you are ready to bootstrap the keystone database using the
-following command::
+Now you are ready to bootstrap the keystone database using the following command::
 
-    root@auth-node:~# keystone-manage db_sync
+    root@auth-node:~# su -s /bin/sh -c "keystone-manage db_sync" keystone
 
-Restart of the keystone service is again required::
+Configure the Apache HTTP server by opening /etc/apache2/apache2.conf and change the ``ServerName controller``
+to the hostname of the controller (auth-node) in our case: ``ServerName auth-node``.
 
-    root@auth-node:~# service keystone restart
+Create the ``/etc/apache2/sites-available/wsgi-keystone.conf`` with the following contents:: 
+
+    Listen 5000
+    Listen 35357
+    
+    <VirtualHost *:5000>
+        WSGIDaemonProcess keystone-public processes=5 threads=1 user=keystone group=keystone display-name=%{GROUP}
+        WSGIProcessGroup keystone-public
+        WSGIScriptAlias / /usr/bin/keystone-wsgi-public
+        WSGIApplicationGroup %{GLOBAL}
+        WSGIPassAuthorization On
+        <IfVersion >= 2.4>
+          ErrorLogFormat "%{cu}t %M"
+        </IfVersion>
+        ErrorLog /var/log/apache2/keystone.log
+        CustomLog /var/log/apache2/keystone_access.log combined
+    
+        <Directory /usr/bin>
+            <IfVersion >= 2.4>
+                Require all granted
+            </IfVersion>
+            <IfVersion < 2.4>
+                Order allow,deny
+                Allow from all
+            </IfVersion>
+        </Directory>
+    </VirtualHost>
+    
+    <VirtualHost *:35357>
+        WSGIDaemonProcess keystone-admin processes=5 threads=1 user=keystone group=keystone display-name=%{GROUP}
+        WSGIProcessGroup keystone-admin
+        WSGIScriptAlias / /usr/bin/keystone-wsgi-admin
+        WSGIApplicationGroup %{GLOBAL}
+        WSGIPassAuthorization On
+        <IfVersion >= 2.4>
+          ErrorLogFormat "%{cu}t %M"
+        </IfVersion>
+        ErrorLog /var/log/apache2/keystone.log
+        CustomLog /var/log/apache2/keystone_access.log combined
+    
+        <Directory /usr/bin>
+            <IfVersion >= 2.4>
+                Require all granted
+            </IfVersion>
+            <IfVersion < 2.4>
+                Order allow,deny
+                Allow from all
+            </IfVersion>
+        </Directory>
+    </VirtualHost> 
+
+At the end enable the Identity service virtual hosts::
+
+    ln -s /etc/apache2/sites-available/wsgi-keystone.conf /etc/apache2/sites-enabled
 
 Keystone by default listens to two different ports::
 
-    root@auth-node:~# netstat -tnlp
-    Active Internet connections (servers and established)
+    root@auth-node:~#  netstat -tnlp
+    Active Internet connections (only servers)
     Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
-    tcp        0      0 0.0.0.0:35357           0.0.0.0:*               LISTEN      3080/python     
-    tcp        0      0 0.0.0.0:5000            0.0.0.0:*               LISTEN      3080/python     
-    [...]
+    tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      1056/sshd       
+    tcp        0      0 127.0.0.1:11211         0.0.0.0:*               LISTEN      3294/memcached  
+    tcp6       0      0 :::22                   :::*                    LISTEN      1056/sshd       
+    tcp6       0      0 :::35357                :::*                    LISTEN      8597/apache2    
+    tcp6       0      0 :::5000                 :::*                    LISTEN      8597/apache2    
+    tcp6       0      0 :::80                   :::*                    LISTEN      8597/apache2 
 
+As you can see apache2 is listening using only over tcp6, in order to fix this you have to
+disable ipv6 in ``/etc/sysctl.conf`` by adding the line: ``net.ipv6.conf.all.disable_ipv6 = 1`` and load 
+the changes::
+
+
+    root@auth-node:~# sysctl -p
+    root@auth-node:~# service apache2 restart
 
 ..
    **NOTE:** At the time of writing (01-08-2014), in Ubuntu 14.40
