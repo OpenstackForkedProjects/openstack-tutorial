@@ -42,7 +42,7 @@ Update the system (can take a while...)::
     root@db-node:# apt-get update -y
     root@db-node:# aptitude upgrade -y
 
-At the end install the NPT package::
+At the end install the NTP package::
  
     root@db-node:# apt-get install ntp
     
