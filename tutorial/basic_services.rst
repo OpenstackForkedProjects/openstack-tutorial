@@ -1,5 +1,5 @@
 -----------------------------------
-Basic services (MySQL and RabbitMQ)
+Basic services (MariaDB and RabbitMQ)
 -----------------------------------
 
 ``db-node``
@@ -8,7 +8,7 @@ Basic services (MySQL and RabbitMQ)
 OpenStack components use an SQL database and an AMQP-compatible
 system to share the current status of the cloud and to communicate to
 each other. Multiple SQL databases are supported, although the most
-commonly used is MySQL. Also multiple AMQP systems are supported, but
+commonly used is MariaDB. Also multiple AMQP systems are supported, but
 again, the most common used is RabbitMQ.
 
 Since the architecture is higly distributed, a request done on
@@ -18,7 +18,7 @@ different machines. Usually the status of the request is saved on the
 database, and whenever some additional task is needed by a different
 service, the AMQP system is used to request it.
 
-MySQL and RabbitMQ are therefore very important and very basic
+MariaDB and RabbitMQ are therefore very important and very basic
 services, used by all the OpenStack components. If something is not
 working here, or not working properly, the whole cloud could be
 unresponsive or broken.
@@ -26,8 +26,8 @@ unresponsive or broken.
 *(good news is: these services are usually quite reliable, at least
 compared to OpenStack)*
 
-update system and install ntp package
--------------------------------------
+openstack liberty packages,system upgrade,NTP
+----------------------------------------------
 
 The following steps need to be done on all the machines. We are going
 to execute them step by step on the **db-node** only, and then we will
@@ -35,46 +35,49 @@ automate the process on the other nodes.
 
 Connect to the **db-node**::
 
-    root@gks-NNN:[~] $ ssh root@db-node
+    root@bastion:$ ssh root@db-node
 
 .. Note: do we actually need to update?
 
 Update the system (can take a while...)::
+
+    root@db-node:# apt-get install software-properties-common; add-apt-repository cloud-archive:liberty 
+    root@db-node:# apt-get update -y
+    root@db-node:# aptitude upgrade -y
+
+At the end install the NPT package::
  
-    root@db-nodes:# apt-get update -y
-    root@db-nodes:# aptitude upgrade -y
+    root@db-node:# apt-get install ntp
+    
+SQL installation
+----------------
 
-
-MySQL installation
-------------------
-
-We are going to install both MySQL and RabbitMQ on the same server,
-but on a production environment you may want to have them installed on
-different servers and/or in HA. The following instructions are
-intended to be used for both scenarios.
+We are going to install both MariaDB server and RabbitMQ on the same 
+server, but on a production environment you may want to have them 
+installed on different servers and/or in HA. The following instructions
+are intended to be used for both scenarios.
 
 .. QUESTION: What does it mean "the following instructions are
    intended to be used on both scnearios"? Which schenarios exactly?
 
-Now please move on the db-node where we have to install the MySQL server.
+Now please move on the db-node where we have to install the mariadb server.
 In order to do that please execute::
 
-    root@db-node # aptitude install -y mysql-server python-mysqldb
+    root@db-node # aptitude install -y mariadb-server python-pymysql
 
 you will be prompted for a password, it is better to specify a *good*
-one, since the MySQL server will be accessible also via internet. You
+one, since the MariaDB server will be accessible also via internet. You
 can use the `pwgen` command to generate random passwords with
 reasonable entropy.
 
-For security reasons the MySQL daemon listens on localhost only,
+For security reasons the MariaDB daemon listens on localhost only,
 port 3306. This has to be changed in order to make the server
 accessible from the all the OpenStack services. Edit the
 ``/etc/mysql/my.cnf`` file and ensure that it contains the following line::
 
-    bind-address            = 10.0.0.3
+    bind-address            = <IP_OF_THE_DB_NODE_VM> 
 
-This will make the MySQL daemon listen only on the *private*
-interface. 
+This will make the MariaDB daemon listen only on the *private* interface. 
 
 ..   Not needed as we removed the public address.
      Please note that in this way you will not be able to
@@ -88,17 +91,18 @@ that add the following lines in the ``[mysqld]`` section of the
 
     [mysqld]
     # ...
-    # This is already the default on MySQL 5.5
-    # default-storage-engine = innodb
+    # This is already the default on MariaDB 5.5
+    default-storage-engine = innodb
+    innodb_file_per_table
     collation-server = utf8_general_ci
     init-connect = 'SET NAMES utf8'
     character-set-server = utf8
 
-After changing this line you have to restart the MySQL server::
+After changing this line you have to restart the MariaDB server::
 
     root@db-node # service mysql restart
 
-By default MySQL allows access also from the network. This is a
+By default MariaDB allows access also from the network. This is a
 security risk, so you may want to disable it.
 
 There is a script called ``mysql_secure_installation`` that helps you
@@ -122,8 +126,8 @@ would suggest you to run it before proceeding::
    See `here <http://docs.openstack.org/icehouse/install-guide/install/apt/content/basics-database-controller.html>`_ for info on 
    TO-DO. 
 
-Check that MySQL is actually running and listening on all the interfaces
-using the ``netstat`` command. 3306 is the port MySQL listens to::
+Check that MariaDB is actually running and listening on all the interfaces
+using the ``netstat`` command. 3306 is the port MariaDB listens to::
 
     root@db-node:~# netstat -nlp|grep 3306
     tcp        0     10 0.0.0.3:3306            0.0.0.0:*               LISTEN      21926/mysqld    
@@ -181,23 +185,22 @@ can change that password, or (better) create a completely new user:
 
 You should create a different user `openstack` with::
 
-    root@db-node:~# rabbitmqctl add_user openstack gridka
+    root@db-node:~# rabbitmqctl add_user openstack openstack 
 
 and then grant write permissions to /::
 
     root@db-node:~# rabbitmqctl set_permissions -p / openstack '.*' '.*' '.*'
  
-By default RabbitMQ listens on port 5672, on all the available
-interfaces::
+By default RabbitMQ listens on port 5672, on all the available interfaces::
 
-    root@db-node:~# netstat -tnlp | grep 5672
+    root@db-node:~# netstat -tnlp | grep 5672    
     tcp6       0      0 :::5672                 :::*                    LISTEN      27903/beam      
 
 In order to prevent this, create (or modify, if it's already there)
 the file ``/etc/rabbitmq/rabbitmq-env.conf`` and add the following
 line::
 
-    NODE_IP_ADDRESS=10.0.0.3
+    NODE_IP_ADDRESS=<IP_OF_THE_DB_NODE_VM>
 
 Whenever you update this file, restart the daemon::
 
@@ -209,7 +212,7 @@ and check again::
     tcp        0      0 10.0.0.3:5672           0.0.0.0:*               LISTEN      28661/beam      
 
 Now we will proceed with the other services, but since most of the
-services need to create a MySQL account and database, you probably
+services need to create a MariaDB account and database, you probably
 want to keep a shell opened on the `db-node`.
 
 `Next: Keystone - Identity service <keystone.rst>`_
