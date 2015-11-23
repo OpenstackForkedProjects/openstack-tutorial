@@ -23,7 +23,7 @@ services, used by all the OpenStack components. If something is not
 working here, or not working properly, the whole cloud could be
 unresponsive or broken.
 
-openstack liberty packages,system upgrade,NTP
+openstack liberty packages, system upgrade, NTP
 ----------------------------------------------
 
 The following steps need to be done on all the machines. We are going
