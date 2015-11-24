@@ -26,7 +26,7 @@ are going on:
 * *Service catalog* provides a catalog of available OpenStack services with their APIs.
 * *Token* is an arbitrary bit of text used to access resources. Each token has a
   scope which describes which resource are accessible with it.
-* *Tenant* A container which is used to group or isolate resources and/or identify objects.
+* *Project* A container which is used to group or isolate resources and/or identify objects.
   Depending on the case a tenant may map to customer, account, organization or project.
 * *Service* is an OpenStack service, such as Compute, Image service, etc.
 * *Endpoint* is a network-accessible address (URL), from where you access an OpenStack service.
@@ -357,6 +357,29 @@ Go on with creating a demo user and project::
     | parent_id   | None                             |
     +-------------+----------------------------------+
 
+    root@auth-node:~# openstack user create --domain default --password-prompt demo
+    User Password:
+    Repeat User Password:
+    +-----------+----------------------------------+
+    | Field     | Value                            |
+    +-----------+----------------------------------+
+    | domain_id | default                          |
+    | enabled   | True                             |
+    | id        | b9a229ef0492468584ff3b1bd8767f49 |
+    | name      | demo                             |
+    +-----------+----------------------------------+
+
+    root@auth-node:~# openstack role create user
+    +-------+----------------------------------+
+    | Field | Value                            |
+    +-------+----------------------------------+
+    | id    | 7a3531b9d2564ad3b446b006ed11a463 |
+    | name  | user                             |
+    +-------+----------------------------------+
+
+    root@auth-node:~# openstack role add --project demo --user demo user
+
+Please note that the last command will NOT print any output on successful termination.
 
 Creation of the endpoint
 ------------------------
@@ -471,27 +494,34 @@ OpenStack command line tools also allow to change the default endpoint
 type. Please refer to the manpage of those commands and look for
 `endpoint-type`.
 
-From now on, you can access keystone using the admin user either by
-using the following command line options::
+From now on, in order to facilitate the usage of the ``openstack`` it is advisable
+to create two files containing the following environment variables::
+ 
+    root@any-host:~# cat admin.sh 
+    export OS_PROJECT_DOMAIN_ID=default
+    export OS_USER_DOMAIN_ID=default
+    export OS_PROJECT_NAME=admin
+    export OS_TENANT_NAME=admin
+    export OS_USERNAME=admin
+    export OS_PASSWORD=ADMIN_PASS
+    export OS_AUTH_URL=http://auth-node.example.org35357/v3
+    export OS_IDENTITY_API_VERSION=3
 
-    root@any-host:~# keystone --os-username admin --os-tenant-name admin \
-        --os-password gridka --os-auth-url http://auth-node.example.org:5000/v2.0
-                    <subcommand>
+    root@any-host:~# cat demo.sh 
+    export OS_PROJECT_DOMAIN_ID=default
+    export OS_USER_DOMAIN_ID=default
+    export OS_PROJECT_NAME=demo
+    export OS_TENANT_NAME=demo
+    export OS_USERNAME=demo
+    export OS_PASSWORD=DEMO_PASS
+    export OS_AUTH_URL=http://auth-node.example.org:5000/v3
+    export OS_IDENTITY_API_VERSION=3
 
-or by setting the following environment variables and run keystone
-without the previous options::
+So that you can load them whenever you need to with::
 
-    root@any-host:~# export OS_USERNAME=admin
-    root@any-host:~# export OS_PASSWORD=gridka
-    root@any-host:~# export OS_TENANT_NAME=admin
-    root@any-host:~# export OS_AUTH_URL=http://auth-node.example.org:5000/v2.0
-
-If you are going to use the last option it is usually a good practice
-to insert those environment variables in the root's ``.bashrc`` file,
-or even better on a separate file, for instance ``~/os-credentials``,
-that you can load whenever you need to with::
-
-    root@any-host:~# . ~/os-credentials
+    root@any-host:~# . ~/admin.sh 
+    or 
+    root@any-host:~# . ~/demo.sh
 
 Of course, in this case it would be better **not** to put the password
 in the file, so that the various openstack commands will prompt for
