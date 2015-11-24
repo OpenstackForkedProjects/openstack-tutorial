@@ -36,79 +36,106 @@ for it.
 On the **db-node** create the database and the MySQL user::
 
     root@db-node:~# mysql -u root -p
-    mysql> CREATE DATABASE glance;
-    mysql> GRANT ALL ON glance.* TO 'glance'@'%' IDENTIFIED BY 'gridka';
-    mysql> FLUSH PRIVILEGES;
-    mysql> exit;
-
-    ..
-       mysql> GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY 'gridka';
+    MariaDB [(none)]> CREATE DATABASE glance;
+    MariaDB [(none)]> GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY 'openstack';
+    MariaDB [(none)]> GRANT ALL ON glance.* TO 'glance'@'%' IDENTIFIED BY 'openstack';
+    MariaDB [(none)]> FLUSH PRIVILEGES;
+    MariaDB [(none)]> exit;
 
 On the **auth-node** instead we need to create an **image** service
 and an endpoint associated with it. The following commands assume you
 already set the environment variables needed to run keystone without
 specifying login, password and endpoint all the times.
 
-First of all we create a `glance` user for keystone, belonging to the
-`service` tenant. You could also use the `admin` user, but it's better
-not to mix things::
+First of all we create a `glance` user for keystone, belonging to the `service` 
+project. You could also use the `admin` user, but it's better not to mix things::
 
-    root@auth-node:~# keystone user-create --name=glance --pass=gridka
-    +----------+----------------------------------+
-    | Property |              Value               |
-    +----------+----------------------------------+
-    |  email   |                                  |
-    | enabled  |               True               |
-    |    id    | 36813160162449d7a912548c054a6ef9 |
-    |   name   |              glance              |
-    | username |              glance              |
-    +----------+----------------------------------+ 
-    
+    root@auth-node:~# openstack user create --domain default --password-prompt glance
+    User Password:
+    Repeat User Password:
+    +-----------+----------------------------------+
+    | Field     | Value                            |
+    +-----------+----------------------------------+
+    | domain_id | default                          |
+    | enabled   | True                             |
+    | id        | 9939e3c4b8e8454a96682158fc7257d8 |
+    | name      | glance                           |
+    +-----------+----------------------------------+
+
 Then we need to give admin permissions to it::
 
-    root@auth-node:~# keystone user-role-add --tenant=service --user=glance --role=admin
+    root@auth-node:~# openstack role add --project service --user glance admin 
 
 Note that the command does not print any confirmation on successful completion.
 Please note that we could have created only one user for all the services, but this is a cleaner solution.
 
 We need then to create the **image** service::
 
-    root@auth-node:~# keystone service-create --name glance --type image \
-      --description 'Glance Image Service'
+    root@auth-node:~# openstack service create --name glance --description "OpenStack Image service" image
     +-------------+----------------------------------+
-    |   Property  |              Value               |
+    | Field       | Value                            |
     +-------------+----------------------------------+
-    | description |       Glance Image Service       |
-    |   enabled   |               True               |
-    |      id     | 05429191756f4852b935c81c19c21424 |
-    |     name    |              glance              |
-    |     type    |              image               |
-    +-------------+----------------------------------+ 
+    | description | OpenStack Image service          |
+    | enabled     | True                             |
+    | id          | 572baa15763a44729f7ffe63e0f1d585 |
+    | name        | glance                           |
+    | type        | image                            |
+    +-------------+----------------------------------+
 
-and the related endpoint::
+and the related endpoints::
 
-    root@auth-node:~# keystone endpoint-create --region RegionOne \
-        --publicurl 'http://image-node.example.org:9292/v2' \
-        --adminurl 'http://image-node.example.org:9292/v2' \
-        --internalurl 'http://image-node:9292/v2' \
-        --region RegionOne --service glance
-    +-------------+---------------------------------------+
-    |   Property  |                 Value                 |
-    +-------------+---------------------------------------+
-    |   adminurl  |        http://10.0.0.5:9292/v2        |
-    |      id     |    3cc1713aaf644c8abf72fadc75697864   |
-    | internalurl |        http://10.0.0.5:9292/v2        |
-    |  publicurl  | http://image-node.example.org:9292/v2 |
-    |    region   |               RegionOne               |
-    |  service_id |    05429191756f4852b935c81c19c21424   |
-    +-------------+---------------------------------------+
+    root@auth-node:~# openstack endpoint create --region RegionOne image public http://image-node.example.org:9292
+    +--------------+------------------------------------+
+    | Field        | Value                              |
+    +--------------+------------------------------------+
+    | enabled      | True                               |
+    | id           | 1ef409678f664130a1cb042ee846b9a4   |
+    | interface    | public                             |
+    | region       | RegionOne                          |
+    | region_id    | RegionOne                          |
+    | service_id   | 572baa15763a44729f7ffe63e0f1d585   |
+    | service_name | glance                             |
+    | service_type | image                              |
+    | url          | http://image-node.example.org:9292 |
+    +--------------+------------------------------------+
+
+    root@auth-node:~# openstack endpoint create --region RegionOne image internal http://image-node.example.org:9292
+    +--------------+------------------------------------+
+    | Field        | Value                              |
+    +--------------+------------------------------------+
+    | enabled      | True                               |
+    | id           | 553af64d54ed445e9a4d3dc507430f9f   |
+    | interface    | internal                           |
+    | region       | RegionOne                          |
+    | region_id    | RegionOne                          |
+    | service_id   | 572baa15763a44729f7ffe63e0f1d585   |
+    | service_name | glance                             |
+    | service_type | image                              |
+    | url          | http://image-node.example.org:9292 |
+    +--------------+------------------------------------+
+
+    root@auth-node:~# openstack endpoint create --region RegionOne image admin http://image-node.example.org:9292
+    +--------------+------------------------------------+
+    | Field        | Value                              |
+    +--------------+------------------------------------+
+    | enabled      | True                               |
+    | id           | f39a4b90d9cd42beba37e4016c74ed12   |
+    | interface    | admin                              |
+    | region       | RegionOne                          |
+    | region_id    | RegionOne                          |
+    | service_id   | 572baa15763a44729f7ffe63e0f1d585   |
+    | service_name | glance                             |
+    | service_type | image                              |
+    | url          | http://image-node.example.org:9292  |
+    +--------------+------------------------------------+
+
 
 installation and configuration
 ------------------------------
 
 On the **image-node** install the **glance** package::
 
-    root@image-node:~# aptitude install glance python-mysqldb
+    root@image-node:~# aptitude -y install glance python-glanceclient 
 
 To configure the glance service we need to edit a few files in ``/etc/glance``:
 
@@ -121,7 +148,7 @@ files and change it to (if it's not there, add it to the section)::
 
     [database]
     ...
-    connection = mysql://glance:gridka@db-node/glance
+    connection = mysql+pymysql://glance:openstack@db-node/glance 
 
 The Image Service has to be configured to use the message broker. Configuration
 information is stored in ``/etc/glance/glance-api.conf``. Please open the file 
@@ -132,7 +159,7 @@ and change as follows in the ``[DEFAULT] section``::
      rpc_backend = rabbit
      rabbit_host = db-node
      rabbit_userid = openstack
-     rabbit_password = gridka
+     rabbit_password = openstack
 
 .. NOTE: I don't think glance is sending notifications at all, as they
    are not needed very often. I think it's used only when you want to
@@ -153,19 +180,32 @@ On both files,  ``glance-api.conf`` and
 ``glance-registry.conf``, ensure the following are set::
 
     [keystone_authtoken]
-    auth_url = http://auth-node.example.org:35357/v2.0
-    identity_uri = http://auth-node.example.org:35357
-    admin_tenant_name = service
-    admin_user = glance
-    admin_password = gridka
+    auth_uri = http://auth-node.example.org:5000
+    auth_url = http://auth-node.example.org:35357
+    auth_plugin = password
+    project_domain_id = default
+    user_domain_id = default
+    project_name = service
+    username = glance
+    password = openstack
 
-
-Finally, we need to specify which paste pipeline we are using. We are not
-entering into details here, just check that the following option is present again
-in both ``glance-api.conf`` and ``glance-registry.conf``::
+We need to specify which paste pipeline we are using. We are not entering into details
+here, just check that the following option is present again in both ``glance-api.conf`` 
+and ``glance-registry.conf``::
 
     [paste_deploy]
     flavor = keystone
+
+Finally again in both ``glance-api.conf`` and ``glance-registry.conf`` set::
+
+    notification_driver = noop
+    verbose = True
+
+Inside the ``[glance-store]]`` of the ``glance-api.conf`` file please change
+the following entries::
+
+    default_store = file
+    filesystem_store_datadir = /var/lib/glance/images/
 
 .. Grizzly note:
    Very interesting: we misspelled the password here, but we only get
@@ -196,8 +236,9 @@ As we did for keystone, we can set environment variables in order to
 access glance::
 
     root@image-node:~# export OS_USERNAME=glance
-    root@image-node:~# export OS_PASSWORD=gridka
+    root@image-node:~# export OS_PASSWORD=openstack
     root@image-node:~# export OS_TENANT_NAME=service
+    root@image-node:~# export OS_IMAGE_API_VERSION=2
     root@image-node:~# export OS_AUTH_URL=http://auth-node.example.org:5000/v2.0
 
 Testing
@@ -205,10 +246,7 @@ Testing
 
 First of all, let's download a very small test image::
 
-    root@image-node:~# http_proxy=http://proxy.uzh.ch:3128 wget http://download.cirros-cloud.net/0.3.3/cirros-0.3.3-x86_64-disk.img
-
-(note: from these virtual machines, you have to set the proxy in order
-to download anything from the internet)
+    root@image-node:~# wget http://download.cirros-cloud.net/0.3.3/cirros-0.3.3-x86_64-disk.img
 
 .. Note that if the --os-endpoint-type is not specified glance will try to use 
    publicurl and if the image-node.example.org is not in /etc/hosts an error 
@@ -219,29 +257,27 @@ to download anything from the internet)
 
 The command line tool to manage images is ``glance``. Uploading an image is easy::
 
-    root@image-node:~# glance image-create --name cirros-0.3.3 --is-public=true \
-      --container-format=bare --disk-format=qcow2 --file cirros-0.3.3-x86_64-disk.img 
-    +------------------+--------------------------------------+
-    | Property         | Value                                |
-    +------------------+--------------------------------------+
-    | checksum         | 50bdc35edb03a38d91b1b071afb20a3c     |
-    | container_format | bare                                 |
-    | created_at       | 2014-04-24T14:51:50                  |
-    | deleted          | False                                |
-    | deleted_at       | None                                 |
-    | disk_format      | qcow2                                |
-    | id               | ee83e7df-a39c-496f-8be4-b604c9594d0e |
-    | is_public        | True                                 |
-    | min_disk         | 0                                    |
-    | min_ram          | 0                                    |
-    | name             | cirros-0.3.3                         |
-    | owner            | c5709d092e3a46b6b895d31f90593640     |
-    | protected        | False                                |
-    | size             | 9761280                              |
-    | status           | active                               |
-    | updated_at       | 2014-04-24T14:51:51                  |
-    | virtual_size     | None                                 |
-    +------------------+--------------------------------------+
+   root@image-node:~# glance image-create --name cirros-0.3.3 --visibility public --container-format bare --disk-format qcow2 --file cirros-0.3.3-x86_64-disk.img
+   +------------------+--------------------------------------+
+   | Property         | Value                                |
+   +------------------+--------------------------------------+
+   | checksum         | 133eae9fb1c98f45894a4e60d8736619     |
+   | container_format | bare                                 |
+   | created_at       | 2015-11-24T14:37:48Z                 |
+   | disk_format      | qcow2                                |
+   | id               | 902f4b61-e802-4321-a304-28efdadbad11 |
+   | min_disk         | 0                                    |
+   | min_ram          | 0                                    |
+   | name             | cirros-0.3.3                         |
+   | owner            | 705ab94a4803444bba42eb2f22de8679     |
+   | protected        | False                                |
+   | size             | 13200896                             |
+   | status           | active                               |
+   | tags             | []                                   |
+   | updated_at       | 2015-11-24T14:37:48Z                 |
+   | virtual_size     | None                                 |
+   | visibility       | public                               |
+   +------------------+--------------------------------------+
 
 .. Maybe it is worthy to explain all the options we use: 
    * *--name* is the name which will be seen in the Horizon UI 
@@ -263,18 +299,19 @@ The command line tool to manage images is ``glance``. Uploading an image is easy
 Using ``glance`` command you can also list the images currently
 uploaded on the image store::
 
-    root@image-node:~# glance image-list
-    +--------------------------------------+--------------+-------------+------------------+---------+--------+
-    | ID                                   | Name         | Disk Format | Container Format | Size    | Status |
-    +--------------------------------------+--------------+-------------+------------------+---------+--------+
-    | 79af6953-6bde-463d-8c02-f10aca227ef4 | cirros-0.3.3 | qcow2       | bare             | 9761280 | active |
-    +--------------------------------------+--------------+-------------+------------------+---------+--------+
+   root@image-node:~# glance image-list
+   +--------------------------------------+--------------+
+   | ID                                   | Name         |
+   +--------------------------------------+--------------+
+   | 902f4b61-e802-4321-a304-28efdadbad11 | cirros-0.3.3 |
+   +--------------------------------------+--------------+
+
 
 The cirros image we uploaded before, having an image id of
-``79af6953-6bde-463d-8c02-f10aca227ef4``, will be found in::
+````, will be found in::
 
-    root@image-node:~# ls -l /var/lib/glance/images/79af6953-6bde-463d-8c02-f10aca227ef4
-    -rw-r----- 1 glance glance 9761280 Apr 24 16:38 /var/lib/glance/images/79af6953-6bde-463d-8c02-f10aca227ef4
+    root@image-node:~# ls -l /var/lib/glance/images/902f4b61-e802-4321-a304-28efdadbad11
+    -rw-r----- 1 glance glance 9761280 Apr 24 16:38 /var/lib/glance/images/902f4b61-e802-4321-a304-28efdadbad11
 
 You can easily find ready-to-use images on the web. An image for the
 `Ubuntu Server 14.04 "Precise" (amd64)
@@ -290,8 +327,8 @@ name`::
 
     root@image-node:~# apt-get install -y qemu-utils
     [...]
-    root@image-node:~# qemu-img info /var/lib/glance/images/79af6953-6bde-463d-8c02-f10aca227ef4
-    image: /var/lib/glance/images/79af6953-6bde-463d-8c02-f10aca227ef4 
+    root@image-node:~# qemu-img info /var/lib/glance/images/902f4b61-e802-4321-a304-28efdadbad11
+    image: /var/lib/glance/images/902f4b61-e802-4321-a304-28efdadbad11
     file format: qcow2
     virtual size: 39M (41126400 bytes)
     disk size: 9.3M
