@@ -279,11 +279,7 @@ basic configuration
 Let's now go back to the  **volume-node** and install the cinder
 packages::
 
-    root@volume-node:~# cinder-api cinder-scheduler python-cinderclient lvm2 
-
-Ensure that the iscsi services are running::
-
-    root@volume-node:~# service open-iscsi restart
+    root@volume-node:~# cinder-api cinder-scheduler cinder-volume python-mysqldb  python-cinderclient lvm2 
 
 We will configure cinder in order to create volumes using LVM, but in
 order to do that we have to provide a volume group called
@@ -364,7 +360,9 @@ Now let's configure Cinder. The main file is
     auth_strategy = keystone
     my_ip = <IP_OF_THE_VOLUME_NODE> 
     verbose=True 
-     
+    enabled_backends = lvm
+    glance_host=volume-node.example.org
+    
     [oslo_messaging_rabbit]
     rabbit_host = db-node
     rabbit_userid = openstack
@@ -386,39 +384,43 @@ Now let's configure Cinder. The main file is
     [oslo_concurrency]
     lock_path = /var/lib/cinder/tm
 
+    [lvm]
+    volume_driver = cinder.volume.drivers.lvm.LVMVolumeDriver
+    volume_group = cinder-volumes
+    iscsi_protocol = iscsi
+    iscsi_helper = tgtadm
+
 .. also needed 
    rabbit_userid = openstack
 
-Default values for all the other options should be fine. Please note
-that here you can change the name of the LVM volume group to use, and
-the default name to be used when creating volumes.
+.. Default values for all the other options should be fine. Please note
+   that here you can change the name of the LVM volume group to use, and
+   the default name to be used when creating volumes.
 
 .. iscsi_ip_address is needed otherwise, in our case, it will try to
    connect using 192.168. network which is not reachable from the
    OpenStack VMs.
 
-In some cases, you might need to define the ``iscsi_ip_address``,
-which is the IP address used to serve the volumes via iSCSI. This IP
-must be reachable by the compute nodes, and in some cases you may have
-a different network for this kind of traffic.::
+.. In some cases, you might need to define the ``iscsi_ip_address``,
+   which is the IP address used to serve the volumes via iSCSI. This IP
+   must be reachable by the compute nodes, and in some cases you may have
+   a different network for this kind of traffic.::
+   [DEFAULT]
+   [...]
+   iscsi_ip_address = 10.0.0.8
 
-    [DEFAULT]
-    [...]
-    iscsi_ip_address = 10.0.0.8
-
-Finally, let's add a section for `keystone` authentication::
-
+.. Finally, let's add a section for `keystone` authentication::
     [keystone_authtoken]
-    identity_uri = http://auth-node:35357
+    identity_uri = http://auth-node.example.org:35357
     admin_tenant_name = service
     admin_user = cinder
-    admin_password = gridka
+    admin_password = openstack
 
 .. is already set to tgtadm in IceHouse``iscsi_helper``.
 
 Populate the cinder database::
 
-    root@volume-node:~# cinder-manage db sync
+    root@volume-node:~# /bin/sh -c "cinder-manage db sync" cinder 
 
     2014-08-21 14:19:13.676 3576 INFO migrate.versioning.api [-] 0 -> 1... 
     ....
@@ -435,7 +437,7 @@ Populate the cinder database::
 Restart cinder services::
 
     root@volume-node:~# for serv in cinder-{api,volume,scheduler}; do service $serv restart; done
-
+    root@volume-node:~# service tgt restart
 
 Testing cinder
 --------------
@@ -447,31 +449,43 @@ are going to set the environment variables and run cinder without
 options::
 
     root@volume-node:~# export OS_USERNAME=admin
-    root@volume-node:~# export OS_PASSWORD=gridka
+    root@volume-node:~# export OS_PASSWORD=openstack
     root@volume-node:~# export OS_TENANT_NAME=admin
     root@volume-node:~# export OS_AUTH_URL=http://auth-node.example.org:5000/v2.0
 
 Test cinder by creating a volume::
 
     root@volume-node:~# cinder create --display-name test 1
-    +---------------------+--------------------------------------+
-    |       Property      |                Value                 |
-    +---------------------+--------------------------------------+
-    |     attachments     |                  []                  |
-    |  availability_zone  |                 nova                 |
-    |       bootable      |                false                 |
-    |      created_at     |      2014-08-21T12:48:30.524319      |
-    | display_description |                 None                 |
-    |     display_name    |                 test                 |
-    |      encrypted      |                False                 |
-    |          id         | 4d04a3d2-0fa7-478d-9314-ca6f52ef08d5 |
-    |       metadata      |                  {}                  |
-    |         size        |                  1                   |
-    |     snapshot_id     |                 None                 |
-    |     source_volid    |                 None                 |
-    |        status       |               creating               |
-    |     volume_type     |                 None                 |
-    +---------------------+--------------------------------------+
+    +---------------------------------------+--------------------------------------+
+    |                Property               |                Value                 |
+    +---------------------------------------+--------------------------------------+
+    |              attachments              |                  []                  |
+    |           availability_zone           |                 nova                 |
+    |                bootable               |                false                 |
+    |          consistencygroup_id          |                 None                 |
+    |               created_at              |      2015-11-25T09:39:58.000000      |
+    |              description              |                 None                 |
+    |               encrypted               |                False                 |
+    |                   id                  | d8047e68-ee9b-4ab5-a152-70b755ab3844 |
+    |                metadata               |                  {}                  |
+    |            migration_status           |                 None                 |
+    |              multiattach              |                False                 |
+    |                  name                 |                 test                 |
+    |         os-vol-host-attr:host         |                 None                 |
+    |     os-vol-mig-status-attr:migstat    |                 None                 |
+    |     os-vol-mig-status-attr:name_id    |                 None                 |
+    |      os-vol-tenant-attr:tenant_id     |   3aab8a31a7124de690032b398a83db37   |
+    |   os-volume-replication:driver_data   |                 None                 |
+    | os-volume-replication:extended_status |                 None                 |
+    |           replication_status          |               disabled               |
+    |                  size                 |                  1                   |
+    |              snapshot_id              |                 None                 |
+    |              source_volid             |                 None                 |
+    |                 status                |               creating               |
+    |                user_id                |   11a4e8d058ad40239f9ccde710cdc527   |
+    |              volume_type              |                 None                 |
+    +---------------------------------------+--------------------------------------+
+
 
 **NOTE**: at this point, you will probably get an error. Please, check
 the logs and try to find out what the problem is, and how to solve it.
@@ -480,12 +494,12 @@ Shortly after, a ``cinder list`` command should show you the newly
 created volume::
 
     root@volume-node:~# cinder list
-    +--------------------------------------+-----------+--------------+------+-------------+----------+-------------+
-    |                  ID                  |   Status  | Display Name | Size | Volume Type | Bootable | Attached to |
-    +--------------------------------------+-----------+--------------+------+-------------+----------+-------------+
-    | 4d04a3d2-0fa7-478d-9314-ca6f52ef08d5 | available |     test     |  1   |     None    |  false   |             |
-    +--------------------------------------+-----------+--------------+------+-------------+----------+-------------+
-
+    +--------------------------------------+-----------+------------------+------+------+-------------+----------+-------------+-------------+
+    |                  ID                  |   Status  | Migration Status | Name | Size | Volume Type | Bootable | Multiattach | Attached to |
+    +--------------------------------------+-----------+------------------+------+------+-------------+----------+-------------+-------------+
+    | d8047e68-ee9b-4ab5-a152-70b755ab3844 | available |        -         | test |  1   |      -      |  false   |    False    |             |
+    +--------------------------------------+-----------+------------------+------+------+-------------+----------+-------------+-------------+
+  
 You can easily check that a new LVM volume has been created::
 
     root@volume-node:~# lvdisplay /dev/cinder-volumes
@@ -547,25 +561,28 @@ Since the volume is not used by any VM, we can delete it with the
 ``cinder delete`` command (you can use the volume `Display Name`
 instead of the volume `id` if this is uniqe)::
 
-    root@volume-node:~# cinder delete 4d04a3d2-0fa7-478d-9314-ca6f52ef08d5 
+    root@volume-node:~# cinder delete d8047e68-ee9b-4ab5-a152-70b755ab3844 
 
 Deleting the volume can take some time::
 
+    Request to delete volume d8047e68-ee9b-4ab5-a152-70b755ab3844 has been accepted.
     root@volume-node:~# cinder list
-    +--------------------------------------+----------+--------------+------+-------------+----------+-------------+
-    |                  ID                  |  Status  | Display Name | Size | Volume Type | Bootable | Attached to |
-    +--------------------------------------+----------+--------------+------+-------------+----------+-------------+
-    | 4d04a3d2-0fa7-478d-9314-ca6f52ef08d5 | deleting |     test     |  1   |     None    |  false   |             |
-    +--------------------------------------+----------+--------------+------+-------------+----------+-------------+
+    +--------------------------------------+----------+------------------+------+------+-------------+----------+-------------+-------------+
+    |                  ID                  |  Status  | Migration Status | Name | Size | Volume Type | Bootable | Multiattach | Attached to |
+    +--------------------------------------+----------+------------------+------+------+-------------+----------+-------------+-------------+
+    | d8047e68-ee9b-4ab5-a152-70b755ab3844 | deleting |        -         | test |  1   |      -      |  false   |    False    |             |
+    +--------------------------------------+----------+------------------+------+------+-------------+----------+-------------+-------------+
+
 
 After a while, the volume is deleted, and LV is deleted::
 
     root@volume-node:~# cinder list
-    root@volume-node:~# cinder list
-    +----+--------+--------------+------+-------------+----------+-------------+
-    | ID | Status | Display Name | Size | Volume Type | Bootable | Attached to |
-    +----+--------+--------------+------+-------------+----------+-------------+
-    +----+--------+--------------+------+-------------+----------+-------------+
+    root@volume-node:~# cinder list 
+    +----+--------+------------------+------+------+-------------+----------+-------------+-------------+
+    | ID | Status | Migration Status | Name | Size | Volume Type | Bootable | Multiattach | Attached to |
+    +----+--------+------------------+------+------+-------------+----------+-------------+-------------+
+    +----+--------+------------------+------+------+-------------+----------+-------------+-------------+
+
     root@volume-node:~# lvs
       LV     VG        Attr      LSize Pool Origin Data%  Move Log Copy%  Convert
       root   golden-vg -wi-ao--- 7.76g                                           

@@ -69,11 +69,11 @@ On the **db-node** you need to create a database and a pair of user
 and password for the keystone service::
 
     root@db-node:~# mysql -u root -p
-    mysql> CREATE DATABASE keystone;
-    mysql> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY 'openstack';
-    mysql> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY 'gridka';
-    mysql> FLUSH PRIVILEGES;
-    mysql> exit
+    MariaDB [(none)]> CREATE DATABASE keystone;
+    MariaDB [(none)]> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY 'openstack';
+    MariaDB [(none)]> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY 'openstack';
+    MariaDB [(none)]> FLUSH PRIVILEGES;
+    MariaDB [(none)]> exit
 
 Please note that almost every OpenStack service will need a private
 database, which means that we are going to run commands similar to the
