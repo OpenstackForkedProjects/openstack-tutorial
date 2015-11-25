@@ -33,20 +33,6 @@ are going on:
 * *Role* is a presonality that an user assumes that enables him to perform a specific set of
   operations, basically a set of rights and privileges (usually inside a tenant for example).  
 
-Before starting we can quickly check if the remote ssh execution of
-the commands done in the `all nodes installation <basic_services.rst#all-nodes-installation>`_ section worked
-without problems::
-
-    root@auth-node:~# dpkg -l ntp
-    Desired=Unknown/Install/Remove/Purge/Hold
-    | Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/trig-aWait/Trig-pend
-    |/ Err?=(none)/Reinst-required (Status,Err: uppercase=bad)
-    ||/ Name                                          Version                     Architecture                Description
-    +++-=============================================-===========================-===========================-===============================================================================================
-    ii  ntp                                           1:4.2.6.p5+dfsg-3ubuntu2    amd64                       Network Time Protocol daemon and utility programs
-
-which confirmed ntp is installed as required.
-
 Keystone
 --------
 
