@@ -417,20 +417,23 @@ You should be able to connect from the bastion host using regular user `ubuntu`:
     ...
     ubuntu@db-node:~$ 
 
-..
-   Installation:
-   -------------
 
-   We will install the following services in sequence, on different
-   virtual machines.
+Install openstack repository and ntp
+------------------------------------
 
-   * ``all nodes installation``: Common tasks for all the nodes
-   * ``db-node``: MySQL + RabbitMQ,
-   * ``auth-node``: keystone,
-   * ``image-node``: glance,
-   * ``compute-node``: nova-api, nova-scheduler,
-   * ``network-node``: nova-network,
-   * ``volume-node``: cinder,
-   * ``hypervisor-1``: nova-compute,
-   * ``hypervisor-2``: nova-compute,
+Before starting with the installation of the services, it's a good
+idea to
 
+* install the openstack repository for Liberty on all the nodes
+* upgrade the packages
+* install NTP (not needed, but strongly recommended, especially when
+  troubleshooting)
+
+From the bastion host:
+
+    root@bastion:$ for node in {db,auth,image,compute,volume,neutron}-node hypervisor-{1,2}; do
+ssh $node 'apt-get install software-properties-common; add-apt-repository cloud-archive:liberty; apt-get update -y; apt-get upgrade -y; apt-get install -y ntp'
+done
+
+(can take a while, let's have a coffe in the meantime)
+    

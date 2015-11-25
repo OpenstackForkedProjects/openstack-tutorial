@@ -23,29 +23,6 @@ services, used by all the OpenStack components. If something is not
 working here, or not working properly, the whole cloud could be
 unresponsive or broken.
 
-openstack liberty packages, system upgrade, NTP
-----------------------------------------------
-
-The following steps need to be done on all the machines. We are going
-to execute them step by step on the **db-node** only, and then we will
-automate the process on the other nodes.
-
-Connect to the **db-node**::
-
-    root@bastion:$ ssh root@db-node
-
-.. Note: do we actually need to update?
-
-Update the system (can take a while...)::
-
-    root@db-node:# apt-get install software-properties-common; add-apt-repository cloud-archive:liberty 
-    root@db-node:# apt-get update -y
-    root@db-node:# aptitude upgrade -y
-
-At the end install the NTP package::
- 
-    root@db-node:# apt-get install ntp
-    
 SQL installation
 ----------------
 
