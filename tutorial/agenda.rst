@@ -55,5 +55,6 @@ Day 4
 * neutron
 * hypervisors
 * troubleshooting
-* Bonus points: HA
-* Bonus points: swift
+* Bonus topic: Python APIs
+* Bonus topic: HA
+* Bonus topic: swift
