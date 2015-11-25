@@ -35,7 +35,7 @@ destinated to the API to the correct VM.
 Preparing the virtual machines
 ------------------------------
 
-Open the browser at http://cloud-test.s3it.uzh.ch/horizon and login using one
+Open the browser at http://cscs2015.s3it.uzh.ch/horizon and login using one
 of the very secret login/password we gave you. Each one of you will
 have a project on its own, called `projectNN` and an user belonging to
 that project, called `userNN`. The teacher will use `user01` and `project01` 
