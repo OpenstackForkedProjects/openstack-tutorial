@@ -32,6 +32,152 @@ on the testbed, we will create one single bastion VM with a floating IP and
 use it to connect and manage the OpenStack VMs and also to forward traffic 
 destinated to the API to the correct VM.
 
+Network configuration
+---------------------
+
+The big picture
++++++++++++++++
+
+Services that usually need access to the public network in an
+OpenStack deployment are those that implements the network APIs and
+provice network connectivity to the VMs:
+
++--------------+---------------------------------+
+| node         | service requiring public access |
++==============+=================================+
+| compute-node | nova-api, horizon               |
++--------------+---------------------------------+
+| volume-node  | cinder-api                      |
++--------------+---------------------------------+
+| image-node   | glance-api                      |
++--------------+---------------------------------+
+| auth-node    | keystone                        |
++--------------+---------------------------------+
+| network-node | neutron-api + NAT               |
++--------------+---------------------------------+
+
+Also, all the OpenStack nodes (including the hypervisors) are usually
+connected to an internal network used for the internal communication
+among all the services.
+
+In a scalable and highly available deployment you would usually put
+all the API services behind a load balancer. In this case, only the
+network node(s) will need direct access to at least one public
+network.
+
+During this workshop, however, we cannot provide the amount of public
+IPs that would be needed to test a fully functional OpenStack cloud to
+all of the attendees, therefore we will use a bastion host to redirect
+(using DNAT) the traffic to the correct service.
+
+.. note: there are other practical reasons: unless you give neutron an
+.. interface directly on the public network, floating IPs will not
+.. work. Also, you should pre-allocate the floating IPs so that
+.. neutron could use them. And, again, you need to disable the
+.. port-security-enabled feature...
+
+
+To mimic a real-world deployment, we will use two networks, one to be
+intended as the management network (`openstack-priv`), the other would
+be the public network (`openstack-public`).
+
++------+-----------------------+-------------------------------------------------+
+| iface| network               | IP range                                        |
++======+=======================+=================================================+
+| eth0 | openstack-priv        | 192.168.1.3 - 192.168.1.254                     |
++------+-----------------------+-------------------------------------------------+
+| eth1 | openstack-public      | 10.0.0.3 - 10.0.0.254                           |
++------+-----------------------+-------------------------------------------------+
+
+*(you can use different IP networks, but this documentation assumes
+these IPv4 ranges for these networks)*
+
+Only the bastion host and the network node will have an interface on
+the `openstack-public` network. All the other hosts will have at least
+one interface in `openstack-priv` network.
+
+On a production environment it's likely that you have even more
+internal networks, possibly associated to different physical
+interfaces or at least different VLANs.
+
+A complex production setup would probably have:
+
+* a management network, to monitor and manage the physical nodes with
+  your configuration and management system of your choice
+* a service network, dedicated for the openstack internal traffic
+  (RabbitMQ, MySQL, internal API)
+* an *integration network*, used to transport the VM-VM traffic, from
+  hypervisor to hypervisor and from the hypervisor to the network
+  node.
+* possibly, a storage network
+* possibly, a completely independent network for HA (to avoid split
+  brain, and depending on your HA setup)
+
+For simplicity, during this workshop the `openstack-priv` network will
+be used for all these purposes.
+
+.. The *OpenStack private network* is the internal network of the
+.. OpenStack virtual machines. The virtual machines need to communicate
+.. with the network node, (unless a "multinode setup is used") and among
+.. them, therefore this network is configured only on the network node
+.. (that also need to have an IP address in it) and the compute nodes,
+.. which only need to have an interface on this network attached to a
+.. bridge the virtual machines will be attached to. On a production
+.. environment you would probably use a separated L2 network for this,
+.. either by using VLANs or using a second physical interface. This is
+.. why in this tutorial we have added a second interface to the compute
+.. nodes, that will be used for VM-VM communication and to communicate
+.. with the network node.
+
+The following diagram shows both the network layout of the physical
+machines and of the virtual machines running in it:
+
+FIXME: change diagram
+
+.. image:: ../images/network_diagram.png
+
+How to connect to the VMs
++++++++++++++++++++++++++
+
+There is still a problem though: we only have one VM we can access
+from the lab: the bastion host. We will use DNAT to redirect the
+service ports to the internal hosts, but how can we ssh on the VMs to
+manage them?
+
+There are multiple options:
+
+* use `sshuttle <https://github.com/apenwarr/sshuttle>`_ (strongly
+  suggested)
+* ssh to the bastion host and then ssh to the openstack VMs using the
+  IPs in the `openstack-public` network
+* use DNAT (port forwarding) to redirect, for instance, tcp/2021 on
+  bastion host to port tcp/22 on auth-node; tcp/2022 to tcp/22 on
+  compute node etc etc.
+* use ssh port forwarding to redirect, for each node, a local port on
+  your laptop to the remote tcp/22 port of the node
+
+We strongly suggest to use sshuttle, and to modify your local
+``/etc/hosts`` file to easily access the OpenStack VMs using the
+names.
+
+**FIXME: run sshuttle with the proper options**
+Since we are using DHCP for both openstack-{priv,public} network,
+you should configure the ``/etc/hosts`` file on all of your virtual 
+machines in order to be able to connect to them using only the hostname.
+
+After you started all of your virtual machines, you could do something like::
+
+     FIXME: to be done over sshuttle?
+     user@ubuntu:~$ IPS=$(nova list --fields name,networks | grep openstack-priv|sed 's/.*openstack-priv=\(192.168.[0-9]\+\.[0-9]\+\).*/\1/g')
+     user@ubuntu:~$ for ip in $IPS; do echo "$ip $(ssh  root@${ip} hostname).example.org" >> /tmp/hosts; done
+     user@ubuntu:~$ for ip in $IPS; do priv=$(ssh root@$ip 'ifconfig eth1 | grep "inet addr" | sed "s/.*addr:\(10.0.0.[0-9]\+\).*/\1/g"'); host=$(ssh root@$ip hostname); echo "$priv $host" >> /tmp/hosts; done
+
+Then, add this file to ``/etc/hosts`` on all the machines::
+
+    user@ubuntu:~$ for ip in $IPS; do cat /tmp/hosts | ssh root@$ip 'cat >> /etc/hosts'; done
+
+
+
 Preparing the virtual machines
 ------------------------------
 
@@ -270,75 +416,6 @@ You should be able to connect from the bastion host using regular user `ubuntu`:
     Welcome to Ubuntu 14.04.3 LTS (GNU/Linux 3.13.0-68-generic x86_64)
     ...
     ubuntu@db-node:~$ 
-
-Network Notes
--------------
-
-In a real-world installation, only the nodes facing the internet will
-have an interface on a public network. Specifically:
-
-+--------------+---------------------------------+
-| node         | service requiring public access |
-+==============+=================================+
-| compute-node | nova-api, horizon               |
-+--------------+---------------------------------+
-| volume-node  | cinder-api                      |
-+--------------+---------------------------------+
-| image-node   | glance-api                      |
-+--------------+---------------------------------+
-| auth-node    | keystone                        |
-+--------------+---------------------------------+
-| network-node | neutron-api + NAT               |
-+--------------+---------------------------------+
-
-
-This is the list of networks we will use:
-
-+------+-----------------------+-------------------------------------------------+
-| iface| network               | IP range                                        |
-+======+=======================+=================================================+
-| eth0 | openstack-priv        | 192.168.1.3 - 192.168.1.254                     |
-+------+-----------------------+-------------------------------------------------+
-| eth1 | openstack-public      | 10.0.0.3 - 10.0.0.254                           |
-+------+-----------------------+-------------------------------------------------+
-
-FIXME: give better explanation of the networks.
-
-The *OpenStack private network* is the internal network of the
-OpenStack virtual machines. The virtual machines need to communicate
-with the network node, (unless a "multinode setup is used") and among
-them, therefore this network is configured only on the network node
-(that also need to have an IP address in it) and the compute nodes,
-which only need to have an interface on this network attached to a
-bridge the virtual machines will be attached to. On a production
-environment you would probably use a separated L2 network for this,
-either by using VLANs or using a second physical interface. This is
-why in this tutorial we have added a second interface to the compute
-nodes, that will be used for VM-VM communication and to communicate
-with the network node.
-
-The following diagram shows both the network layout of the physical
-machines and of the virtual machines running in it:
-
-FIXME: change diagram
-
-.. image:: ../images/network_diagram.png
-
-Since we are using DHCP for both openstack-{priv,public} network,
-you should configure the ``/etc/hosts`` file on all of your virtual 
-machines in order to be able to connect to them using only the hostname.
-
-After you started all of your virtual machines, you could do something like::
-
-     FIXME: to be done over sshuttle?
-     user@ubuntu:~$ IPS=$(nova list --fields name,networks | grep openstack-priv|sed 's/.*openstack-priv=\(192.168.[0-9]\+\.[0-9]\+\).*/\1/g')
-     user@ubuntu:~$ for ip in $IPS; do echo "$ip $(ssh  root@${ip} hostname).example.org" >> /tmp/hosts; done
-     user@ubuntu:~$ for ip in $IPS; do priv=$(ssh root@$ip 'ifconfig eth1 | grep "inet addr" | sed "s/.*addr:\(10.0.0.[0-9]\+\).*/\1/g"'); host=$(ssh root@$ip hostname); echo "$priv $host" >> /tmp/hosts; done
-
-Then, add this file to ``/etc/hosts`` on all the machines::
-
-    user@ubuntu:~$ for ip in $IPS; do cat /tmp/hosts | ssh root@$ip 'cat >> /etc/hosts'; done
-
 
 ..
    Installation:
