@@ -2,6 +2,7 @@ Tables of contents
 ------------------
 
 .. toctree::
+   agenda
    preparation
    openstack_overview
    basic_services
