@@ -193,7 +193,7 @@ to those VMs is possible. There are two different ways to achieve that:
 
 - enable the `ForwardAgent` in your ssh configuration,
 - create a new keypair on the bastion host and add it to
-  your account on https://test-cloud.s3it.uzh.ch.
+  your account on https://cscs2015.s3it.uzh.ch.
 
 You can create the virtual machines either via web interface or, if
 you install on your laptop the following packages, also from the

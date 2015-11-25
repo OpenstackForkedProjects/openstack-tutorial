@@ -286,8 +286,9 @@ order to do that we have to provide a volume group called
 ``cinder-volume`` (you can use a different name, but you have to
 update the cinder configuration file).
 
-At this point, you should create a volume in `cloud-test` and attach
-it to the **volume-node** machine...
+At this point, you should create a volume in
+https://cscs2015.s3it.uzh.ch and attach it to the **volume-node**
+machine...
 
 The **volume-node** machine has one more disk (``/dev/vdb``) which
 we will use for LVM. You can either partition this disk and use those

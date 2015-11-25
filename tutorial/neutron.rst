@@ -458,7 +458,7 @@ Default networks
 ----------------
 
 **NOTE**: These instructions will not work, because security group on
-the `cloud-test.gc3.uzh.ch` cloud will filter packets directed to the
+the `cscs2015.gc3.uzh.ch` cloud will filter packets directed to the
 floating IP of the VM!
 
 Before starting any VM, we need to setup some basic networks.

@@ -50,7 +50,7 @@ while ``/etc/neutron/dnsmasq.conf`` will contain::
     dhcp-option-force=26,1400
 
 Note that we are using 1400 because our GRE networks are incapsulated
-themselves into another GRE tunnel (the "outer" OpenStack cloud `cloud-test`)
+themselves into another GRE tunnel (the "outer" OpenStack cloud http://cscs2015.s3it.uzh.ch)
 
 Nested GRE
 ----------
@@ -58,7 +58,7 @@ Nested GRE
 During this tutorial we used GRE networks for the "inner" cloud. These
 gre tunnels are distributed among the test compute and network nodes
 using the vxlan/gre "internal" network in
-`cloud-test.gc3.uzh.ch`. However, OpenStack creates default security
+`cscs2015.gc3.uzh.ch`. However, OpenStack creates default security
 groups to control the traffic to and from a VM.
 
 In order to allow GRE traffic from hypervisor-1 to network-node and vice
@@ -66,10 +66,10 @@ versa, you have to add a rule to the security group, and allow at
 least IP protocol `47` both in ingress (in egress, the default
 security group allows anything).
 
-**NOTE**: on cloud-test, we also had to load `nf_conntrack_proto_gre`
-tunnel to make the kernel recognize the first GRE packet as "NEW",
-otherwise it was recognized as "INVALID" and the iptables rules put in
-place by Neutron would drop its packets.
+**NOTE**: on cscs2015.s3it.uzh.ch, we also had to load
+`nf_conntrack_proto_gre` tunnel to make the kernel recognize the first
+GRE packet as "NEW", otherwise it was recognized as "INVALID" and the
+iptables rules put in place by Neutron would drop its packets.
 
 
 Metadata
