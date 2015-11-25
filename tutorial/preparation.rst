@@ -1,7 +1,7 @@
 
------------------
-Tutorial overview
------------------
+---------------------------------
+Preparation of the infrastructure
+---------------------------------
 
 During this tutorial, each one of you will have access to an OpenStack
 private cloud and will create one instance per service:

@@ -2,7 +2,7 @@ Tables of contents
 ------------------
 
 .. toctree::
-   overview
+   preparation
    openstack_overview
    basic_services
    keystone
