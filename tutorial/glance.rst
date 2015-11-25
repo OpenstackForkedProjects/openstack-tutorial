@@ -303,7 +303,7 @@ uploaded on the image store::
 
 
 The cirros image we uploaded before, having an image id of
-````, will be found in::
+``902f4b61-e802-4321-a304-28efdadbad11``, will be found in::
 
     root@image-node:~# ls -l /var/lib/glance/images/902f4b61-e802-4321-a304-28efdadbad11
     -rw-r----- 1 glance glance 9761280 Apr 24 16:38 /var/lib/glance/images/902f4b61-e802-4321-a304-28efdadbad11

@@ -429,11 +429,15 @@ idea to
 * install NTP (not needed, but strongly recommended, especially when
   troubleshooting)
 
-From the bastion host:
+From the bastion host::
 
     root@bastion:$ for node in {db,auth,image,compute,volume,neutron}-node hypervisor-{1,2}; do
-ssh $node 'apt-get install software-properties-common; add-apt-repository cloud-archive:liberty; apt-get update -y; apt-get upgrade -y; apt-get install -y ntp'
-done
+    ssh $node 'apt-get install software-properties-common;
+       add-apt-repository cloud-archive:liberty;
+       apt-get update -y;
+       apt-get upgrade -y;
+       apt-get install -y ntp'
+    done
 
 (can take a while, let's have a coffe in the meantime)
     
