@@ -473,7 +473,7 @@ setup the relevant environment variables (`OS_USERNAME`,
 `OS_PASSWORD`, `OS_TENANT_NAME`, `OS_AUTH_URL`) in order to use the
 `neutron` command::
 
-    root@neutron-node:~# neutron net-create ext-net --router:external \
+    root@network-node:~# neutron net-create ext-net --router:external \
          --provider:physical_network external --provider:network_type flat
     Created a new network:
     +---------------------------+--------------------------------------+
@@ -495,7 +495,7 @@ setup the relevant environment variables (`OS_USERNAME`,
 Let's now create the L3 network, using the range of floating IPs we
 decided to use::
 
-    root@neutron-node:~# neutron subnet-create ext-net --name ext-subnet \
+    root@network-node:~# neutron subnet-create ext-net --name ext-subnet \
       --allocation-pool start=172.23.99.1,end=172.23.99.254 \
       --disable-dhcp --gateway 172.23.0.1 \
       172.23.0.0/16
@@ -533,7 +533,7 @@ addressing of other networks created by different tenants.
 
 ::
     
-    root@neutron-node:~# neutron net-create demo-net
+    root@network-node:~# neutron net-create demo-net
     Created a new network:
     +---------------------------+--------------------------------------+
     | Field                     | Value                                |
@@ -550,7 +550,7 @@ addressing of other networks created by different tenants.
     | tenant_id                 | cacb2edc36a343c4b4747b8a8349371a     |
     +---------------------------+--------------------------------------+
     
-    root@neutron-node:~# neutron subnet-create demo-net --name demo-subnet --gateway 10.99.0.1 10.99.0.0/24
+    root@network-node:~# neutron subnet-create demo-net --name demo-subnet --gateway 10.99.0.1 10.99.0.0/24
     Created a new subnet:
     +------------------+----------------------------------------------+
     | Field            | Value                                        |
@@ -572,7 +572,7 @@ This network is completely isolated, as it has no connection to the
 external network we created before. In order to connect the two, we
 need to create a router::
 
-    root@neutron-node:~# neutron router-create demo-router
+    root@network-node:~# neutron router-create demo-router
     Created a new router:
     +-----------------------+--------------------------------------+
     | Field                 | Value                                |
@@ -587,18 +587,18 @@ need to create a router::
 
 and connect it to the subnet `demo-subnet`::
 
-    root@neutron-node:~# neutron router-interface-add demo-router demo-subnet
+    root@network-node:~# neutron router-interface-add demo-router demo-subnet
     Added interface 32ea1402-bb31-4575-8c14-06aea02d3442 to router demo-router.
 
 and to the external network `external-net`::
 
-    root@neutron-node:~# neutron router-gateway-set demo-router external-net
+    root@network-node:~# neutron router-gateway-set demo-router external-net
     Set gateway for router demo-router
 
 On the neutron node, you should see that new ports have been created
 on openvswitch::
 
-    root@neutron-node:~# ovs-vsctl show
+    root@network-node:~# ovs-vsctl show
     1a05c398-3024-493f-b3c4-a01912688ba4
         Bridge br-ex
             Port br-ex
@@ -625,7 +625,7 @@ on openvswitch::
 
 and a new namespace has been created::
 
-    root@neutron-node:~# ip netns list
+    root@network-node:~# ip netns list
     qrouter-3616bd03-0100-4247-9699-2839e360a688
 
 In order to allow multiple tenant networks to share the same range of
@@ -634,15 +634,15 @@ address of the router `demo-router` is *not* visibile on the default
 namespare, but only on the namespace created for that router. Indeed,
 running `ip addr show`::
 
-    root@neutron-node:~# ip addr show|grep 10.99
-    root@neutron-node:~# 
+    root@network-node:~# ip addr show|grep 10.99
+    root@network-node:~# 
 
 will show no IP addresses on the range we specified in the default
 namespace.
 
 However, switching namespace...::
 
-    root@neutron-node:~# ip netns exec qrouter-3616bd03-0100-4247-9699-2839e360a688 ip addr show
+    root@network-node:~# ip netns exec qrouter-3616bd03-0100-4247-9699-2839e360a688 ip addr show
     1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default 
         link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
         inet 127.0.0.1/8 scope host lo
@@ -670,14 +670,14 @@ much more complicated...
 
 Now, as you can see::
 
-    root@neutron-node:~# neutron port-list
+    root@network-node:~# neutron port-list
     +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------+
     | id                                   | name | mac_address       | fixed_ips                                                                         |
     +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------+
     | 32ea1402-bb31-4575-8c14-06aea02d3442 |      | fa:16:3e:e2:d8:74 | {"subnet_id": "5d4c6c72-9cf8-4272-8cec-08bd04b4b1f4", "ip_address": "10.99.0.1"}  |
     | 808b139c-4598-4bf4-92b4-1a728aa0a21e |      | fa:16:3e:ca:6f:eb | {"subnet_id": "d7fc327b-8e04-43ce-bad4-98840b9b0927", "ip_address": "172.16.1.2"} |
     +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------+
-    root@neutron-node:~# neutron subnet-list
+    root@network-node:~# neutron subnet-list
     +--------------------------------------+-------------+---------------+------------------------------------------------+
     | id                                   | name        | cidr          | allocation_pools                               |
     +--------------------------------------+-------------+---------------+------------------------------------------------+
@@ -689,7 +689,7 @@ an IP address has been assigned to the virtual port connected to the
 `ext-subnet` subnetwork. This is only visible on the router namespace,
 as you have already seen::
 
-    root@neutron-node:~# ip netns exec qrouter-3616bd03-0100-4247-9699-2839e360a688 ip addr show | grep 172
+    root@network-node:~# ip netns exec qrouter-3616bd03-0100-4247-9699-2839e360a688 ip addr show | grep 172
         inet 172.16.1.2/16 brd 172.16.255.255 scope global qg-808b139c-45
 
 If everything went fine, you should be able to ping this IP address

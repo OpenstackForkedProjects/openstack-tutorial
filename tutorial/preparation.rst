@@ -21,7 +21,7 @@ private cloud and will create one instance per service:
 * ``volume-node``: runs **cinder**, the volume manager, composed of
   the *cinder-api*, *cinder-scheduler* and *cinder-volume* services
 
-* ``neutron-node``: runs **neutron**, the NaaS manager. 
+* ``network-node``: runs **neutron**, the NaaS manager. 
 
 * ``hypervisor-1``: runs *nova-compute*
 
