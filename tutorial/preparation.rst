@@ -432,8 +432,8 @@ idea to
 From the bastion host::
 
     root@bastion:$ for node in {db,auth,image,compute,volume,neutron}-node hypervisor-{1,2}; do
-    ssh $node 'apt-get install software-properties-common;
-       add-apt-repository cloud-archive:liberty;
+    ssh $node 'apt-get install -y software-properties-common;
+       add-apt-repository -y cloud-archive:liberty;
        apt-get update -y;
        apt-get upgrade -y;
        apt-get install -y ntp'
