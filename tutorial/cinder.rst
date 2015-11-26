@@ -449,10 +449,17 @@ environment variables. In order to make the commands easier to read we
 are going to set the environment variables and run cinder without
 options::
 
-    root@volume-node:~# export OS_USERNAME=admin
-    root@volume-node:~# export OS_PASSWORD=openstack
-    root@volume-node:~# export OS_TENANT_NAME=admin
-    root@volume-node:~# export OS_AUTH_URL=http://auth-node.example.org:5000/v2.0
+    root@compute-node:~# export OS_PROJECT_DOMAIN_ID=default
+    root@compute-node:~# export OS_USER_DOMAIN_ID=default
+    root@compute-node:~# export OS_PROJECT_NAME=admin
+    root@compute-node:~# export OS_TENANT_NAME=admin
+    root@compute-node:~# export OS_USERNAME=admin
+    root@compute-node:~# export OS_PASSWORD=openstack
+    root@compute-node:~# export OS_AUTH_URL=http://auth-node.example.org:35357/v3
+    root@compute-node:~# export OS_IDENTITY_API_VERSION=3
+
+You may want to save those variables in a file and source it next time you need to perform administrative
+operations on the volume node.
 
 Test cinder by creating a volume::
 

@@ -236,6 +236,9 @@ access glance::
     root@image-node:~# export OS_IMAGE_API_VERSION=2
     root@image-node:~# export OS_AUTH_URL=http://auth-node.example.org:5000/v2.0
 
+You may want to save those variables in a file and source it next time you need to perform administrative
+operations on the image node.
+
 Testing
 -------
 
