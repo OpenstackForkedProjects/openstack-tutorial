@@ -3,6 +3,8 @@ Tables of contents
 
 .. toctree::
    agenda
+   web_interface
+   cli_interface
    preparation
    openstack_overview
    basic_services

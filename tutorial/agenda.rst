@@ -2,54 +2,24 @@
 Workshop agenda
 ---------------
 
-**DRAFT**
+Tuesday 2/12/2015
+------------------
 
-Day 1
------
+* Why a cloud? |why_a_cloud|
+* :doc:`web_interface`
+* :ref:`lab-exercise-1`
+* :doc:`cli_interface`
+* :ref:`lab-exercise-2`
 
-Morning:
-
-  * Blah-blah cloud blah-as-a-service meet the BOFH
-  * Why OpenStack
-  * Overview of the services
-  * Web Interface
-    - import a keypair
-    - setup security groups
-    - setup the networking
-    - create a VM
-    - create a volume and attach to the VM
-    - create a snapshot
-  * LAB: setup a webserver    
-
-Afternoon:
-
-  * real world use cases
-    - gc3pie (try it?)
-    - elasticluster (try it?)
-
-  * Introduction to the CLI
-    - installation, set the environment etc.
-    - keypair
-    - security group
-    - networks and router
-    - boot a vm
-    - create a volume and attach it
-    - attach a second interface to the VM
-    - disable port security
-
-  * LAB:
-    - create a cluster topology: 1 frontend + n backend
-    - frontend with floating IPs, backend connected only to a private,
-      not routable network.
-    - try to enable NAT on the frontend and use it as gw for the backends
-
-
-  * intro to the api?
+  .. * real world use cases
+  ..   - gc3pie (try it?)
+  ..   - elasticluster (try it?)
+  .. * intro to the api?
   
 Day 2
 -----
 
-* more in depth overview of the infrastructure
+* OpenStack architecture |openstack|
 * MySQL
 * rabbitmq
 * keystone
@@ -73,3 +43,6 @@ Day 4
 * Bonus topic: Python APIs
 * Bonus topic: HA
 * Bonus topic: swift
+
+.. |why_a_cloud| replace:: :download:`slides <../presentations/overview/why_cloud.pdf>`
+.. |openstack| replace:: :download:`slides <../presentations/overview/openstack.pdf>`
