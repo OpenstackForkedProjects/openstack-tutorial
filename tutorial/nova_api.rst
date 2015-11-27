@@ -204,7 +204,7 @@ Shall we keep it like this? If yes we have to understand why they decided to do 
     ## ....
     enabled_apis=osapi_compute,metadata
 
-Nova and neutron
+nova and neutron
 ----------------
 
 In case you are using neutron (as we are, in this tutorial), you also
@@ -277,7 +277,7 @@ Similar output is given by ``nova service-list`` and ``nova host-list`` commands
 has direct access to the database, therefore must run on an host with the correct ``nova.conf``, while the
 ``nova`` commands uses the network API, so you can run them from a computer not part of the cloud.
 
-Testing
+testing
 -------
 
 So far we cannot run an instance yet, but we can check if nova is able to talk to the services already installed.

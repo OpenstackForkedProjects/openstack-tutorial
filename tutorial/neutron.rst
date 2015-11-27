@@ -5,47 +5,80 @@ Network service - neutron
 db and keystone configuration
 -----------------------------
 
-neutron is more similar to cinder than to nova-network, so we will
-need to configure MySQL, Keystone and rabbit like we did with all the
-other services.
+neutron is more similar to cinder than to nova-network, so we will need to configure MySQL,
+Keystone and rabbit like we did with all the other services.
 
 First move to the **db-node** and create the database::
 
     root@db-node:~# mysql -u root -p
     
-    mysql> CREATE DATABASE neutron;
-    mysql> GRANT ALL ON neutron.* TO 'neutron'@'%' IDENTIFIED BY 'gridka';
-    mysql> FLUSH PRIVILEGES;
-    mysql> exit
+    MariaDB [(none)]> CREATE DATABASE neutron;
+    MariaDB [(none)]> GRANT ALL ON neutron.* TO 'neutron'@'%' IDENTIFIED BY 'gridka';
+    MariaDB [(none)]> GRANT ALL ON neutron.* TO 'neutron'@'localhost' IDENTIFIED BY 'openstack';
+    MariaDB [(none)]> FLUSH PRIVILEGES;
+    MariaDB [(none)]> exit
 
 Create Neutron user, service and endpoint::
 
-    root@auth-node:~# keystone user-create --name=neutron --pass=gridka
-    +----------+----------------------------------+
-    | Property |              Value               |
-    +----------+----------------------------------+
-    |  email   |                                  |
-    | enabled  |               True               |
-    |    id    | 5b92212d919d4db7ae3ef60e33682ad2 |
-    |   name   |             neutron              |
-    +----------+----------------------------------+
-    root@auth-node:~# keystone user-role-add --user=neutron --tenant=service --role=admin
+    root@auth-node:~# openstack user create --domain default --password-prompt neutron
+    User Password:
+    Repeat User Password:
+    +-----------+----------------------------------+
+    | Field     | Value                            |
+    +-----------+----------------------------------+
+    | domain_id | default                          |
+    | enabled   | True                             |
+    | id        | 6a53d05e356e4c1e81bc200baa868c40 |
+    | name      | neutron                          |
+    +-----------+----------------------------------+
+    
+    root@auth-node:~# openstack role add --project service --user neutron admin
+      
+    root@auth-node:~#  openstack service create --name neutron --description "OpenStack Networking" network
+    +-------------+----------------------------------+
+    | Field       | Value                            |
+    +-------------+----------------------------------+
+    | description | OpenStack Networking             |
+    | enabled     | True                             |
+    | id          | 16a5565a08364993994ef909c2ee0404 |
+    | name        | neutron                          |
+    | type        | network                          |
+    +-------------+----------------------------------+
 
-    root@auth-node:~# keystone service-create --name=neutron --type=network \
-         --description="OpenStack Networking Service"
+    root@auth-node:~# openstack endpoint create --region RegionOne network internal http://controller:9696
+    +--------------+----------------------------------+
+    | Field        | Value                            |
+    +--------------+----------------------------------+
+    | enabled      | True                             |
+    | id           | 45bb5daa918b4eb2984573a17ec5b83f |
+    | interface    | internal                         |
+    | region       | RegionOne                        |
+    | region_id    | RegionOne                        |
+    | service_id   | 16a5565a08364993994ef909c2ee0404 |
+    | service_name | neutron                          |
+    | service_type | network                          |
+    | url          | http://controller:9696           |
+    +--------------+----------------------------------+
 
-    root@auth-node:~# keystone endpoint-create \
-         --region RegionOne \
-         --service neutron \
-         --publicurl http://network-node.example.org:9696 \
-         --adminurl http://network-node.example.org:9696 \
-         --internalurl http://network-node:9696
-
+    root@auth-node:~# openstack endpoint create --region RegionOne network admin http://network-node.example.org:9696
+    +--------------+--------------------------------------+
+    | Field        | Value                                |
+    +--------------+--------------------------------------+
+    | enabled      | True                                 |
+    | id           | eee0577f96104e33aa28db5f791ebf39     |
+    | interface    | admin                                |
+    | region       | RegionOne                            |
+    | region_id    | RegionOne                            |
+    | service_id   | 16a5565a08364993994ef909c2ee0404     |
+    | service_name | neutron                              |
+    | service_type | network                              |
+    | url          | http://network-node.example.org:9696 |
+    +--------------+--------------------------------------+   
 
 ``network-node`` configuration
 ------------------------------
 
-Neutron si composed of three different kind of services:
+Neutron is composed of three different kind of services:
 
 * neutron server (API)
 * neutron plugin (to deal with different network types)
@@ -59,7 +92,7 @@ node.
 
 Login on the **network-node** and install the following packages::
 
-    root@network-node:~# apt-get install python-mysqldb neutron-server \
+    root@network-node:~# apt-get install -y python-mysqldb neutron-server \
         neutron-dhcp-agent neutron-plugin-ml2 \
         neutron-plugin-openvswitch-agent neutron-l3-agent
 
@@ -87,34 +120,27 @@ RabbitMQ, keystone and MySQL information::
 
     [DEFAULT]
     # ...
-
-    # RabbitMQ configuration
-    rpc_backend = neutron.openstack.common.rpc.impl_kombu
+    rpc_backend = rabbit
+    auth_strategy = keystone
+     
+    [oslo_messaging_rabbit]
     rabbit_host = db-node
     rabbit_userid = openstack
-    rabbit_password = gridka
-    # ...
+    rabbit_password = openstack 
 
-    # Keystone configuration
-    auth_strategy = keystone
     [keystone_authtoken]
-    auth_host = auth-node
-    auth_port = 35357
-    auth_protocol = http
-    admin_tenant_name = service
-    admin_user = neutron
-    admin_password = gridka
-    # ...
+    auth_uri = http://auth-node.example.org:5000
+    auth_url = http://auth-node.example.org:35357
+    auth_plugin = password
+    project_domain_id = default
+    user_domain_id = default
+    project_name = service
+    username = neutron
+    password = openstack
 
-    # ...
-    # MySQL configuration
     [database]
-    connection = mysql://neutron:gridka@db-node/neutron
+    connection = mysql://neutron:openstack@db-node/neutron
 
-
-.. for kilo:
-   auth_uri = http://auth-node:35357/v2.0/
-   identity_uri = http://auth-node:5000
 
 Then, we need to also update the configuration related to ML2, the
 plugin we are going to use. Again in the
@@ -122,7 +148,6 @@ plugin we are going to use. Again in the
 
     [DEFAULT]
     # ...
-
     # ML2 configuration
     core_plugin = ml2
     service_plugins = router
@@ -134,31 +159,33 @@ communicate any change in the network topology. Again in the
 
     [DEFAULT]
     # ...
-
     notify_nova_on_port_status_changes = True
     notify_nova_on_port_data_changes = True
-    nova_url = http://compute-node:8774/v2
+    nova_url = http://compute-node.example.org:8774/v2
     nova_admin_username = nova
-    nova_admin_tenant_id = 3dff3552489e458c85143a84759db398
-    nova_admin_password = gridka
-    nova_admin_auth_url = http://auth-node:35357/v2.0
+    nova_admin_tenant_id = 705ab94a4803444bba42eb2f22de8679 
+    nova_admin_password = openstack
+    nova_admin_auth_url = http://auth-node.example.org:35357/v2.0
 
 **NOTE:** put the correct value for the ``nova_admin_tenant_id``
-option: it has to be the tenant id of the `service` tenant. You can
+option: it has to be the tenant id of the `service` project. You can
 recover it from a node with access to keystone with::
 
-    root@auth-node:~# keystone tenant-get service
+    root@auth-node:~# openstack project show service
     +-------------+----------------------------------+
-    |   Property  |              Value               |
+    | Field       | Value                            |
     +-------------+----------------------------------+
-    | description |                                  |
-    |   enabled   |               True               |
-    |      id     | 3dff3552489e458c85143a84759db398 |
-    |     name    |             service              |
+    | description | Service Project                  |
+    | domain_id   | default                          |
+    | enabled     | True                             |
+    | id          | 705ab94a4803444bba42eb2f22de8679 |
+    | is_domain   | False                            |
+    | name        | service                          |
+    | parent_id   | None                             |
     +-------------+----------------------------------+
+ 
 
-
-The L3-agent (responsible for routing) reads the
+The L3-agent (responsible for routing, using iptables) reads the
 ``/etc/neutron/l3_agent.ini`` file instead. Ensure the following
 options are set::
 
@@ -194,13 +221,13 @@ create a shared secret that will be shared between the `nova-api`
 service and the `metadata-agent`::
 
     [DEFAULT]
-    auth_url = http://auth-node:5000/v2.0
+    auth_url = http://auth-node.example.org:5000/v2.0
     auth_region = RegionOne
     admin_tenant_name = service
     admin_user = neutron
-    admin_password = gridka
+    admin_password = openstack 
     # IP of the nova-api/nova-metadata-api service
-    nova_metadata_ip = compute-node
+    nova_metadata_ip = <IP_OF_THE_COMPUTE_NODE> 
     metadata_proxy_shared_secret = d1a6195d-5912-4ef9-b01f-426603d56bd2
 
 `nova-api` service
@@ -232,7 +259,7 @@ options are set::
 
     [ml2]
     # ...
-    type_drivers = gre,flat
+    type_drivers = gre,flat,vxlan
     tenant_network_types = gre
     mechanism_drivers = openvswitch
 
@@ -240,17 +267,18 @@ options are set::
     [ml2_type_gre]
     # ...
     tunnel_id_ranges = 1:1000
-
         
-    [ovs]
-    # ...
-    local_ip = 10.0.0.9
-    tunnel_type = gre
-    enable_tunneling = True
-
     [securitygroup]
     # ...
     enable_security_group = True
+
+In the ``/etc/neutron/plugins/ml2/openvswitch_agent.ini`` file set the 
+OpenVSwitch options::
+
+    [ovs]
+    # ...
+    local_ip = <IP_OF_THE_NETWORK_NODE_ON_THE_PRIV_NETOWRK> 
+    tunnel_type = gre
 
 ..
     firewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
@@ -272,19 +300,18 @@ OpenVSwitch
 The package installer should have already created a `br-int` interface
 (integration network), used to allow VM-to-VM communication::
 
-    root@network-node:~# ovs-vsctl show
-    1a05c398-3024-493f-b3c4-a01912688ba4
-        Bridge br-int
-            fail_mode: secure
-            Port br-int
-                Interface br-int
-                    type: internal
-        ovs_version: "2.0.1"
+   root@network-node:~# ovs-vsctl show 
+   617b99d3-22a5-455d-9a54-d951b62dd9be
+       Bridge br-int
+           fail_mode: secure
+           Port br-int
+               Interface br-int
+                   type: internal
+       ovs_version: "2.4.0"
 
 If not, create one with the following command::
 
     root@network-node:~# ovs-vsctl add-br br-int
-
 
 Then, we need a bridge for external traffic::
 

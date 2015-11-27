@@ -64,123 +64,55 @@ for starting an OpenStack instance is done. Note that this is very high level de
 Software installation
 ---------------------
 
-Since we cannot use KVM because our compute nodes are virtualized and
-the host node does not support *nested virtualization*, we install
-**qemu** instead of **kvm**::
+Since our compute nodes support *nested virtualization* we can install **kvm**::
 
-    root@hypervisor-1 # apt-get install -y nova-compute-qemu \
-      neutron-plugin-openvswitch-agent neutron-plugin-ml2 \
-      python-libguestfs libguestfs-tools
+    root@hypervisor-1 # apt-get install -y nova-compute-kvm sysfsutils 
 
-This will also install the **nova-compute** package and all its
-dependencies.
-
-.. FIXME: let's see if with icehouse nova-compute is using
-   nova-conductor by default and nothing else.
+This will also install the **nova-compute-kvm** package and all its dependencies.
 
    In order to allow the compute nodes to access the MySQL server you must 
    install the **MySQL python library**:: 
 
        root@hypervisor-1 # apt-get install -y python-mysqldb
 
-
-..
-   Network configuration
-   ~~~~~~~~~~~~~~~~~~~~~
-
-   We need to configure an internal bridge. The bridge will be used by
-   libvirt daemon to connect the network interface of a virtual machine
-   to a physical network, in our case, **eth1** on the compute node.
-
-   In our setup, this is the same layer-2 network as the **eth1** network
-   used for the internal network of OpenStack services; however, in
-   production, you will probably want to separate the two network, either
-   by using physically separated networks or by use of VLANs.
-
-   Please note that (using the naming convention of our setup) the
-   **eth3** interface on the **network-node** must be in the same L2 network as
-   **eth1** in the **compute-node**
-
-   Update the ``/etc/network/interfaces`` file and configure a new
-   bridge, called **br100** attached to the network interface ``eth1``::
-
-       auto br100
-       iface br100 inet static
-           address      0.0.0.0
-           pre-up ifconfig eth1 0.0.0.0 
-           bridge-ports eth1
-           bridge_stp   off
-           bridge_fd    0
-
-   Start the bridge::
-
-       root@hypervisor-1 # ifup br100
-
-   The **br100** interface should now be up&running::
-
-       root@hypervisor-1 # ifconfig br100
-       br100     Link encap:Ethernet  HWaddr 52:54:00:c7:1a:7b  
-                 inet6 addr: fe80::5054:ff:fec7:1a7b/64 Scope:Link
-                 UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
-                 RX packets:6 errors:0 dropped:0 overruns:0 frame:0
-                 TX packets:6 errors:0 dropped:0 overruns:0 carrier:0
-                 collisions:0 txqueuelen:0 
-                 RX bytes:272 (272.0 B)  TX bytes:468 (468.0 B)
-
-   The following command will show you the physical interfaces associated
-   to the **br100** bridge::
-
-       root@hypervisor-1 # brctl show
-       bridge name bridge id       STP enabled interfaces
-       br100       8000.525400c71a7b   no      eth1
-
-
 nova configuration
 ------------------
 
-The **nova-compute** daemon must be able to connect to the RabbitMQ
-and MySQL servers. The minimum information you have to provide in the
-``/etc/nova/nova.conf`` file are::
+The **nova-compute** daemon must be able to connect to the RabbitMQ and MySQL servers. 
+The minimum information you have to provide in the ``/etc/nova/nova.conf`` file are::
 
     [DEFAULT]
-    logdir=/var/log/nova
-    state_path=/var/lib/nova
-    lock_path=/run/lock/nova
-    verbose=True
-    # api_paste_config=/etc/nova/api-paste.ini
-    # compute_scheduler_driver=nova.scheduler.simple.SimpleScheduler
+    #...
+    rpc_backend = rabbit
+    auth_strategy = keystone
+    my_ip = <IP_OF_THE_HYPERVISOR_HOST>
+    
+    [oslo_messaging_rabbit] 
     rabbit_host = db-node
     rabbit_userid = openstack
-    rabbit_password = gridka
+    rabbit_password = openstack 
 
-    # Cinder: use internal URl instead of public one.
-    cinder_catalog_info = volume:cinder:internalURL
-
-    # Vnc configuration
-    novnc_enabled=true
-    novncproxy_base_url=http://compute-node:6080/vnc_auto.html
-    novncproxy_port=6080
-    vncserver_proxyclient_address=10.0.0.20
-    vncserver_listen=0.0.0.0
-
-    # Compute #
-    compute_driver=libvirt.LibvirtDriver
-
-    # Auth
-    use_deprecated_auth=false
-    auth_strategy=keystone
-
-    [glance]
-    # Imaging service
-    api_servers=image-node:9292
-    image_service=nova.image.glance.GlanceImageService
-
+    [oslo_concurrency]
+    lock_path = /var/lib/nova/tmp
     
+    [glance]
+    host = image-node.example.org  
+        
+    [vnc]
+    enabled = True
+    vncserver_listen = 0.0.0.0
+    vncserver_proxyclient_address = <IP_OF_THE_HYPERVISOR_HOST>
+    novncproxy_base_url = http://<IP_OF_THE_NOVA_COMPUTE_HOST>:6080/vnc_auto.html 
+
     [keystone_authtoken]
-    auth_uri = http://auth-node:5000
-    admin_tenant_name = service
-    admin_user = nova
-    admin_password = gridka
+    auth_uri = http://auth-node.example.org:5000
+    auth_url = http://auth-node.example.org:35357
+    auth_plugin = password
+    project_domain_id = default
+    user_domain_id = default
+    project_name = service
+    username = nova
+    password = openstack
 
 .. WARNING: novncproxy_base_url should have the public ip, not the
    private one.    
@@ -194,59 +126,105 @@ and MySQL servers. The minimum information you have to provide in the
     # compute hosts have no public interface. 
     # Lets leave this as an exercise for the students.   
 
-You can just replace the ``/etc/nova/nova.conf`` file with the content
-displayed above.
+You can just replace the ``/etc/nova/nova.conf`` file with the content displayed above.
 
-..
-   On the ``/etc/nova/api-paste.conf`` we have to put the information
-   on how to access the keystone authentication service. Ensure then that
-   the following information are present in this file::
-   TA: I don't think it is needed as api-paste.conf file is not even present.
+Check if the ``virt_type`` inside the ``[libvirt]`` of the ``/etc/nova/nova-compute.conf``
+is set to ``kvm``.
 
-       [filter:authtoken]
-       paste.filter_factory = keystoneclient.middleware.auth_token:filter_factory
-       auth_host = 10.0.0.4
-       auth_port = 35357
-       auth_protocol = http
-       admin_tenant_name = service
-       admin_user = nova
-       admin_password = novaServ
+Finaly remove the SQLite database::
+
+   root@hypervisor-1 rm -f /var/lib/nova/nova.sqlite
+
+.. 
+   # We may not have to do the physical configuration
+   physical network configuration
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   
+   We need to configure an internal bridge. The bridge will be used by
+   libvirt daemon to connect the network interface of a virtual machine
+   to a physical network, in our case, **eth1** on the compute node.
+   
+   In our setup, this is the same layer-2 network as the **eth1** network
+   used for the internal network of OpenStack services; however, in
+   production, you will probably want to separate the two network, either
+   by using physically separated networks or by use of VLANs.
+   
+   Please note that (using the naming convention of our setup) the
+   **eth3** interface on the **network-node** must be in the same L2 network as
+   **eth1** in the **compute-node**
+   
+   Update the ``/etc/network/interfaces`` file and configure a new
+   bridge, called **br100** attached to the network interface ``eth1``::
+   
+       auto br100
+       iface br100 inet static
+           address      0.0.0.0
+           pre-up ifconfig eth1 0.0.0.0 
+           bridge-ports eth1
+           bridge_stp   off
+           bridge_fd    0
+   
+   Start the bridge::
+   
+       root@hypervisor-1 # ifup br100
+   
+   The **br100** interface should now be up&running::
+   
+       root@hypervisor-1 # ifconfig br100
+       br100     Link encap:Ethernet  HWaddr 52:54:00:c7:1a:7b  
+                 inet6 addr: fe80::5054:ff:fec7:1a7b/64 Scope:Link
+                 UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+                 RX packets:6 errors:0 dropped:0 overruns:0 frame:0
+                 TX packets:6 errors:0 dropped:0 overruns:0 carrier:0
+                 collisions:0 txqueuelen:0 
+                 RX bytes:272 (272.0 B)  TX bytes:468 (468.0 B)
+   
+   The following command will show you the physical interfaces associated
+   to the **br100** bridge::
+   
+       root@hypervisor-1 # brctl show
+       bridge name bridge id       STP enabled interfaces
+       br100       8000.525400c71a7b   no      eth1
+
 
 neutron on the compute node
 ---------------------------
+
+Install the needed components::
+
+   root@hypervisor-1:~# apt-get install -y neutron-plugin-openvswitch-agent
 
 To enable neutron for the nova-compute service you also have to ensure
 the following lines to are presents in ``/etc/nova/nova.conf``::
 
     [DEFAULT]
     # ...
-
     network_api_class = nova.network.neutronv2.api.API
     linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
     firewall_driver = nova.virt.firewall.NoopFirewallDriver
     security_group_api = neutron
 
     [neutron]
-    # It is fine to have Noop here, because this is the *nova*
-    # firewall. Neutron is responsible of configuring the firewall and its
-    # configuration is stored in /etc/neutron/neutron.conf
-    url = http://network-node:9696
-    auth_strategy = keystone
-    admin_tenant_name = service
-    admin_username = neutron
-    admin_password = gridka
-    admin_auth_url = http://auth-node:35357/v2.0
+    url = http://network-node.example.org:9696
+    auth_url = http://auth-node-example.org:35357
+    auth_plugin = password
+    project_domain_id = default
+    user_domain_id = default
+    region_name = RegionOne
+    project_name = service
+    username = neutron
+    password = openstack
 
 Ensure the `br-int` bridge has been created by the installer::
 
     root@hypervisor-1:~# ovs-vsctl show
-    62f8b342-8afa-4ce4-aa98-e2ab671d2837
+    8c5958c3-95a6-4929-8a84-0fbc7388a29b
         Bridge br-int
             fail_mode: secure
             Port br-int
                 Interface br-int
                     type: internal
-        ovs_version: "2.0.1"
+        ovs_version: "2.4.0"
 
 Ensure `rp_filter` is disabled. As we did before, you need to ensure
 the following lines are present in ``/etc/sysctl.conf`` file.
@@ -258,26 +236,28 @@ afterwards. To force Linux to re-read the file you can run::
     net.ipv4.conf.all.rp_filter=0
     net.ipv4.conf.default.rp_filter=0
 
-Configure RabbitMQ and Keystone options for neutron, by editing
-``/etc/neutron/neutron.conf``::
+Configure RabbitMQ and Keystone for neutron, by finding and editing the following 
+options in the ``/etc/neutron/neutron.conf`` file::
 
     [DEFAULT]
     # ...
-
-    rpc_backend = neutron.openstack.common.rpc.impl_kombu
-    rabbit_host = db-node
-    rabbit_password = gridka
-
+    rpc_backend = rabbit
     auth_strategy = keystone
-    # ...
+    
+    [oslo_messaging_rabbit]
+    rabbit_host = controller
+    rabbit_userid = openstack
+    rabbit_password = openstack
 
     [keystone_authtoken]
-    auth_host = auth-node
-    auth_port = 35357
-    auth_protocol = http
-    admin_tenant_name = service
-    admin_user = neutron
-    admin_password = gridka
+    auth_uri = http://auth-node.example.org:5000
+    auth_url = http://auth-node.example.org:35357
+    auth_plugin = password
+    project_domain_id = default
+    user_domain_id = default
+    project_name = service
+    username = neutron
+    password = openstack
 
 .. in kilo:
    auth_uri = http://auth-node:35357/v2.0/
@@ -312,7 +292,7 @@ The ML2 plugin is configured in
     [ovs]
     # ...
     local_ip = 10.0.0.20
-    [agent]
+    [agent]	
     tunnel_type = gre
     tunnel_types = gre
     enable_tunneling = True
@@ -333,31 +313,6 @@ Restart `nova-compute` and the neutron agent::
     root@hypervisor-1:~# service neutron-plugin-openvswitch-agent restart
     neutron-plugin-openvswitch-agent stop/waiting
     neutron-plugin-openvswitch-agent start/running, process 17788
-
-nova-compute configuration
---------------------------
-
-Ensure that the the ``/etc/nova/nova-compute.conf`` has the correct
-libvirt type. For our setup this file should only contain::
-
-    [DEFAULT]
-    compute_driver=libvirt.LibvirtDriver
-    [libvirt]
-    virt_type=qemu
-
-..
-   Was:
-       [DEFAULT]
-       libvirt_type=qemu
-       libvirt_cpu_mode=none
-
-Please note that these are the lines needed on *our* setup because we
-have virtualized compute nodes without support for nested
-virtualization. On a production environment, using physical machines
-with full support for virtualization you would probably need to set::
-
-    [libvirt]
-    virt_type=kvm
 
 ..
   Not needed:
@@ -401,8 +356,7 @@ you should be able to see the compute node from the **compute-node**::
     nova-scheduler   compute-node                             internal         enabled    :-)   2013-08-13 13:43:35
     nova-compute     hypervisor-1                            nova             enabled    :-)   None      
 
-You should also see the openvswitch agent from the output of `neutron
-agent-list`::
+You should also see the openvswitch agent from the output of `neutron agent-list`::
 
     root@compute-node:~# neutron agent-list
     +--------------------------------------+--------------------+--------------+-------+----------------+---------------------------+
@@ -414,8 +368,6 @@ agent-list`::
     | bf45584a-8b4d-42f9-848c-2928821d4e28 | DHCP agent         | network-node | :-)   | True           | neutron-dhcp-agent        |
     | c45fecd8-e893-4dd9-9427-7d561697b8c4 | Open vSwitch agent | network-node | :-)   | True           | neutron-openvswitch-agent |
     +--------------------------------------+--------------------+--------------+-------+----------------+---------------------------+
-
-
 
 Testing OpenStack
 -----------------
