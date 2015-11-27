@@ -16,8 +16,6 @@ First of all, import the openstack modules::
  from keystoneclient import session
  from keystoneclient.auth.identity import v3 as identity
  from novaclient import client as nova_client
- from glanceclient import client as glance_client
- from cinderclient import client as cinder_client
 
 If you also configure logging, you will be able to see the errors of
 the python openstack libraries::
@@ -52,9 +50,6 @@ options, but in our case we can just cheat::
 Now you can create a nova client::
 
  nclient = nova_client.Client('2', session=sess)
- gclient = glance_client.Client('2', session=sess)
- client = cinder_client.Client('2', session=sess)
- nnclient = neutron_client.Client(session=sess)
 
 Look at the flavors::
 
@@ -62,15 +57,20 @@ Look at the flavors::
 
 Look at the images::
 
- images = list(gclient.images.list())
+ images = nclient.images.list()
 
-Look at the networks::
+volumes::
+
+ volumes = nclient.volumes.list()
+
+and networks::
 
  networks = nclient.networks.list()
 
 Start a server::
 
  vm = nclient.servers.create(
-    'test-vm', flavors[0], images[0],
+    'test-vm', images[0], flavors[0],
     key_name='antonio',
     nics=[{'net-id': networks[0]}])
+
