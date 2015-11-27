@@ -87,6 +87,19 @@ Brief list of commands we will use
 ----------------------------------
 
 
+* openstack catalog list
+* openstack flavor list
+* openstack image list
+* openstack security group *
+* openstack keypair list|create
+* neutron net-create|subnet-create|router-create
+* neutron router-gateway-set
+* neutron router-interface-add
+* openstack server list
+* openstack server create
+* openstack server image create
+* openstack server ssh
+
 A few things the web interface does not allow you to do
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

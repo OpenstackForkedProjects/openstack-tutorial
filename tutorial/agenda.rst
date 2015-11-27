@@ -3,7 +3,7 @@ Workshop agenda
 ---------------
 
 Tuesday 2/12/2015
-------------------
+-----------------
 
 * Why a cloud? |why_a_cloud|
 * :doc:`web_interface`
@@ -16,33 +16,35 @@ Tuesday 2/12/2015
   ..   - elasticluster (try it?)
   .. * intro to the api?
   
-Day 2
------
+Wednesday 3/12/2015
+-------------------
 
 * OpenStack architecture |openstack|
-* MySQL
-* rabbitmq
-* keystone
+* Installation of basic services:
+  - MySQL
+  - rabbitmq
+  - keystone
+
+
+Thursday 4/12/2015
+------------------
+
 * glance
-
-Day 3
------
-
 * nova
 * cinder
 * horizon
-* neutron
 
-Day 4
------
+Friday 5/12/2015
+----------------
 
 * networking
 * neutron
 * hypervisors
 * troubleshooting
-* Bonus topic: Python APIs
-* Bonus topic: HA
-* Bonus topic: swift
+* bonus topics (depending on available time and interest)
+  - Python APIs
+  - HA
+  - swift
 
 .. |why_a_cloud| replace:: :download:`slides <../presentations/overview/why_cloud.pdf>`
 .. |openstack| replace:: :download:`slides <../presentations/overview/openstack.pdf>`
