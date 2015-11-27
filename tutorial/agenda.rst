@@ -19,11 +19,16 @@ Morning:
     - create a VM
     - create a volume and attach to the VM
     - create a snapshot
-  * LAB: setup a webserver
+  * LAB: setup a webserver    
 
 Afternoon:
 
+  * real world use cases
+    - gc3pie (try it?)
+    - elasticluster (try it?)
+
   * Introduction to the CLI
+    - installation, set the environment etc.
     - keypair
     - security group
     - networks and router
@@ -31,8 +36,16 @@ Afternoon:
     - create a volume and attach it
     - attach a second interface to the VM
     - disable port security
-  * LAB: create a SLURM cluster with NAT
 
+  * LAB:
+    - create a cluster topology: 1 frontend + n backend
+    - frontend with floating IPs, backend connected only to a private,
+      not routable network.
+    - try to enable NAT on the frontend and use it as gw for the backends
+
+
+  * intro to the api?
+  
 Day 2
 -----
 
@@ -45,13 +58,15 @@ Day 2
 Day 3
 -----
 
-* cinder
 * nova
+* cinder
+* horizon
 * neutron
 
 Day 4
 -----
 
+* networking
 * neutron
 * hypervisors
 * troubleshooting
