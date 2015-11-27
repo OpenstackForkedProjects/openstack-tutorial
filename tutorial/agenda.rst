@@ -37,8 +37,7 @@ Thursday 4/12/2015
 Friday 5/12/2015
 ----------------
 
-* networking
-* neutron
+* networking with neutron |neutron|
 * hypervisors
 * troubleshooting
 * bonus topics (depending on available time and interest)
@@ -48,3 +47,4 @@ Friday 5/12/2015
 
 .. |why_a_cloud| replace:: :download:`slides <../presentations/overview/why_cloud.pdf>`
 .. |openstack| replace:: :download:`slides <../presentations/overview/openstack.pdf>`
+.. |neutron| replace:: :download:`slides <../presentations/neutron/neutron.pdf>`
