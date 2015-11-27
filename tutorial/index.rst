@@ -5,6 +5,7 @@ Tables of contents
    agenda
    web_interface
    cli_interface
+   python_interface
    preparation
    openstack_overview
    basic_services
