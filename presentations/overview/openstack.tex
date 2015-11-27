@@ -95,9 +95,6 @@
 
     \pause
   \item complex network setup are possible
-    \begin{itemize}
-    \item but often not needed
-    \end{itemize}
 
     \pause
   \item OS already installed (but adapted automatically to the current
@@ -176,7 +173,7 @@
   \alt<1>{\vspace{1.4em}}{~}
   \alt<2>{\textbf{Keystone} provides the authentication service}{}
   \alt<3>{\textbf{Nova} provides computational services}{}
-  \alt<4>{\textbf{Neutron} (\texttt{nova-network}) provides network services}{}
+  \alt<4>{\textbf{Neutron} provides network services}{}
   \alt<5>{\textbf{Glance} provides image store}{}
   \alt<6>{\textbf{Cinder} provides block persistent store}{}
   \alt<7>{\textbf{Swift} provides object persistent store}{}
@@ -210,8 +207,6 @@
   \item[nova-scheduler] decides where to start an instance
   \item[nova-compute] running on each compute node, interacts with the
     hypervisor and actually starts the vm.
-  \item[nova-network] old, simple, (working) implementation of network
-    service. Does not support Software Defined Networks.
   \end{description}
 \end{frame}
 
@@ -243,7 +238,7 @@
     \includegraphics[width=2cm]{openstack-networking-icon.png}
     \column{8cm}
     Service responsible of creating and managing networks. It is
-    supposed to replace \textbf{nova-network}.
+    supposed to replace.
   \end{columns}
 
   \+\+
@@ -375,8 +370,8 @@
     \end{enumerate}
   }{}
 
-\item \alt<7>{\HL{\textbf{neutron/nova-network} configure the network}}
-    {\textbf{neutron/nova-network} configure the network}
+\item \alt<7>{\HL{\textbf{neutron} configure the network}}
+    {\textbf{neutron} configure the network}
   \alt<7>{
     \begin{enumerate}
     \item allocates a valid private ip
@@ -446,14 +441,6 @@
     
   \caption*{\href{http://docs.openstack.org/training-guides/content/figures/5/a/figures/openstack-arch-havana-logical-v1.jpg}{OpenStack software overview}}
 \end{figure}
-\end{frame}
-
-\begin{frame}
-  {WTF?}
-  \begin{figure}[ht]
-    \centering
-    \includegraphics[height=20em]{doireallyhave.jpg}
-  \end{figure}
 \end{frame}
 
 \begin{frame}

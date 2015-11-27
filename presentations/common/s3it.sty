@@ -1,4 +1,4 @@
-%% s3it.sty
+%% gc3.sty
 %%
 %% LaTeX style file with common commands and settings for the S3IT
 %% presentations and documents.
@@ -71,7 +71,7 @@
     procnamestyle=\bfseries\color{BrickRed},%
     procnamekeys={def},%
     stringstyle=\color{MidnightBlue},%
-    showstringspaces=false,%
+    showstringspaces=true,%
     emph={self},%
     emphstyle=\bfseries\color{gray},%
     % --- escaping and special displays ---
@@ -106,6 +106,10 @@
   }%
 \usepackage{url}
 
+\usepackage{xspace}
+%% S3IT logo short and logn
+\newcommand{\sssit}{S$^3$IT\xspace}
+\newcommand{\sssitlong}{Services and Support for Science IT\xspace}
 
 %% Use `\largeskip` or its alias `\+` to get a larger vertical white
 %% space between two lines/paragraphs:
@@ -162,8 +166,3 @@
 }{%
   \egroup%
 }
-
-
-%% Make completely invisible stuff which comes after \pause when it
-%% should not be visible.
-\setbeamercovered{transparent=0}

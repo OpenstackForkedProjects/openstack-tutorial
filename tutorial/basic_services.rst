@@ -189,5 +189,3 @@ Now we will proceed with the other services, but since most of the
 services need to create a MariaDB account and database, you probably
 want to keep a shell opened on the `db-node`.
 
-`Next: Keystone - Identity service <keystone.rst>`_
-
