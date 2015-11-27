@@ -1,34 +1,6 @@
 Troubleshooting
 ===============
 
-Exception when starting nova-compute
-------------------------------------
-
-This error::
-
-    2015-05-02 20:24:18.037 16613 ERROR nova.compute.manager [-] [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e] Instance failed to spawn
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e] Traceback (most recent call last):
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]   File "/usr/lib/python2.7/dist-packages/nova/compute/manager.py", line 2252, in _build_resources
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]     yield resources
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]   File "/usr/lib/python2.7/dist-packages/nova/compute/manager.py", line 2122, in _build_and_run_instance
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]     block_device_info=block_device_info)
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]   File "/usr/lib/python2.7/dist-packages/nova/virt/libvirt/driver.py", line 2620, in spawn
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]     write_to_disk=True)
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]   File "/usr/lib/python2.7/dist-packages/nova/virt/libvirt/driver.py", line 4159, in _get_guest_xml
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]     context)
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]   File "/usr/lib/python2.7/dist-packages/nova/virt/libvirt/driver.py", line 3840, in _get_guest_config
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]     guest.sysinfo = self._get_guest_config_sysinfo(instance)
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]   File "/usr/lib/python2.7/dist-packages/nova/virt/libvirt/driver.py", line 3542, in _get_guest_config_sysinfo
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]     sysinfo.system_serial = self._sysinfo_serial_func()
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]   File "/usr/lib/python2.7/dist-packages/nova/virt/libvirt/driver.py", line 3531, in _get_host_sysinfo_serial_auto
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]     return self._get_host_sysinfo_serial_os()
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]   File "/usr/lib/python2.7/dist-packages/nova/virt/libvirt/driver.py", line 3527, in _get_host_sysinfo_serial_os
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e]     return str(uuid.UUID(f.read().split()[0]))
-    2015-05-02 20:24:18.037 16613 TRACE nova.compute.manager [instance: a23f2825-ceb5-4579-bc39-febb3d0fd85e] IndexError: list index out of range
-
-is caused by a bug.
-
-Set some value in ``/etc/machine-id``
 
 MTU
 ---
@@ -549,6 +521,11 @@ proposed sabotages (but you can be creative!)
 
 * Do the same, but for the **cinder** service
 
+* Do the same, but for the **neutron** service
+
+* Put a wrong password for `nova_admin_password` in ``neutron.conf``,
+  see what happens.
+
 * Similarly, try to put the wrong *keystone* password on one of the
   main services.
 
@@ -557,18 +534,9 @@ proposed sabotages (but you can be creative!)
   cinder services. Then, try to create a volume and attach it to a
   running instance.
 
-* remove all the floating IPs with the ``nova-manage floating
-  delete``. Play also with the ``auto_assign_floating_ip`` option of
-  the ``/etc/nova/nova.conf`` configuration file. (if you are very
-  mean, you can replace the floating IPs with similar but invalid ones)
+* remove the eth0 interface from ``br-ex`` on the network node
 
-* change the value of `public_interface` in ``/etc/nova/nova.conf`` on
-  the **network-node**
-
-* delete all floating IPs and re-create them adding option
-  ``--interface eth0``. Then, start a VM and see what happens to the
-  interfaces of the network-node
-
+* put a different/wrong IP address as ``my_ip`` in openvswitch_conf.ini
 
 
 List of possible checks

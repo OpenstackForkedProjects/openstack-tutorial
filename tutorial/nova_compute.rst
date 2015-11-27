@@ -692,13 +692,11 @@ or, if things went wrong, revert the resize::
 
 The status of the server will now be back to ACTIVE.
 
-`Next: Troubleshooting <troubleshooting1.rst>`_
+.. BUGS
+.. ----
 
-BUGS
-----
-
-* On Kilo-RC1, you have to write something in
-  ``/etc/machine-id``. Cfr. https://bugs.launchpad.net/ubuntu/+source/nova/+bug/1413293
+.. * On Kilo-RC1, you have to write something in
+..   ``/etc/machine-id``. Cfr. https://bugs.launchpad.net/ubuntu/+source/nova/+bug/1413293
 
 References
 ----------
