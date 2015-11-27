@@ -125,6 +125,44 @@ A namespace is an \textit{isolated copy} of the network stack
   \end{itemize}
 \end{frame}
 
+\begin{frame}
+  {OpenVSwitch}
+
+  \begin{quotation}
+    OVS is a production quality, multilayer virtual switch
+    ... designed to enable massive network automation through
+    programmatic extension.
+  \end{quotation}
+
+\+
+
+\begin{itemize}
+\item \texttt{ovs-vsctl} to add/remove ports and bridges
+\item \texttt{ovs-ofctl} to manage and monitor the openflow switch
+\item \texttt{ovs-appctl} manage daemons that compose openvswitch
+\item you can do whatever you would do on a complex switch
+\end{itemize}
+
+Bottom line: same feature set and complexity of a very modern switch.
+
+% http://openvswitch.org/support/config-cookbooks/sflow/
+% http://therandomsecurityguy.com/openvswitch-cheat-sheet/
+% http://git.openvswitch.org/cgi-bin/gitweb.cgi?p=openvswitch;a=blob_plain;f=FAQ;hb=HEAD
+
+% ovs-vsctl add-br br0
+%        ovs-vsctl add-port br0 eth0
+%        ovs-vsctl add-port br0 tap0
+%        ovs-vsctl add-port br0 tap1 \
+%            -- --id=@p get port tap1 \
+%            -- --id=@m create mirror name=m0 select-all=true output-port=@p \
+%            -- set bridge br0 mirrors=@m
+
+%    To later disable mirroring, run:
+
+%        ovs-vsctl clear bridge br0 mirrors
+{\footnotesize\href{http://openvswitch.org/}{OpenVSwitch home page}}
+\end{frame}
+
 %%% Neutron
 
 \begin{frame}
@@ -410,7 +448,7 @@ On neutron you have two choices for L3 agent:
   \item \url{https://wiki.openstack.org/wiki/Neutron}
   \item \href{http://www.confreaks.com/videos/3533-openstacksummitatl2014-inside-the-architecture-of-neutron}{OpenStack
       Summit Atlanta 2014 - Inside the Architecture of Neutron}
-
+  \item \url{http://openvswitch.org/}{OpenVSwitch home page}
   \end{itemize}
 \end{frame}
 
