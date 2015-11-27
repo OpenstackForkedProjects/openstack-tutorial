@@ -13,7 +13,7 @@ First move to the **db-node** and create the database::
     root@db-node:~# mysql -u root -p
     
     MariaDB [(none)]> CREATE DATABASE neutron;
-    MariaDB [(none)]> GRANT ALL ON neutron.* TO 'neutron'@'%' IDENTIFIED BY 'gridka';
+    MariaDB [(none)]> GRANT ALL ON neutron.* TO 'neutron'@'%' IDENTIFIED BY 'openstack';
     MariaDB [(none)]> GRANT ALL ON neutron.* TO 'neutron'@'localhost' IDENTIFIED BY 'openstack';
     MariaDB [(none)]> FLUSH PRIVILEGES;
     MariaDB [(none)]> exit
@@ -258,40 +258,40 @@ which Neutron will build its networks, so edit
 options are set::
 
     [ml2]
-    # ...
+    #...
     type_drivers = gre,flat,vxlan
     tenant_network_types = gre
     mechanism_drivers = openvswitch
+    extension_drivers = port_security
 
+    [ml2_type_flat]
+    #...
+    flat_networks = public
         
     [ml2_type_gre]
-    # ...
+    #...
     tunnel_id_ranges = 1:1000
-        
+
     [securitygroup]
-    # ...
+    #...
     enable_security_group = True
+    enable_ipset = True
 
 In the ``/etc/neutron/plugins/ml2/openvswitch_agent.ini`` file set the 
 OpenVSwitch options::
 
-    [ovs]
-    # ...
+    
     local_ip = <IP_OF_THE_NETWORK_NODE_ON_THE_PRIV_NETOWRK> 
     tunnel_type = gre
-
-..
-    firewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+    bridge_mappings = public:br-eth1
 
 Database bootstrap
 ------------------
 
 Initialize the database with::
 
-    root@network-node:~# neutron-db-manage \
-        --config-file /etc/neutron/neutron.conf \
-        --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
-        upgrade juno
+    root@network-node:~# /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf \
+    >   --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
 
  
 OpenVSwitch
@@ -309,13 +309,13 @@ The package installer should have already created a `br-int` interface
                    type: internal
        ovs_version: "2.4.0"
 
-If not, create one with the following command::
+If NOT, create one with the following command::
 
     root@network-node:~# ovs-vsctl add-br br-int
 
 Then, we need a bridge for external traffic::
 
-    root@network-node:~# ovs-vsctl add-br br-ex
+    root@network-node:~# ovs-vsctl add-br br-eth1
 
 Now it gets a bit tricky for us. Ideally, you would have two network
 interfaces, one used to access the network node using the public IP,
@@ -326,9 +326,9 @@ However, because of the limitations in OpenStack (VMs can only have
 one interface per network) and the filters OpenStack put in place to
 prevent spoofing and other nasty hacks, we have to:
 
-* attach the `eth0` network interface to `br-ex`
-* give the ip of `eth0` to `br-ex`
-* swap the mac addresses of `br-ex` and `eth0`
+* attach the `eth1` network interface to `br-eth1`
+* give the ip of `eth1` to `br-eth1`
+* swap the mac addresses of `br-eth1` and `eth1`
 
 In order to do that you will need to connect to the VM from one of the
 internal nodes, since otherwise you will kick yourself out::
@@ -337,28 +337,28 @@ internal nodes, since otherwise you will kick yourself out::
     Welcome to Ubuntu 14.04.2 LTS (GNU/Linux 3.13.0-32-generic x86_64)
 
      * Documentation:  https://help.ubuntu.com/
-    root@network-node:~# ip a show dev eth0
-    2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc pfifo_fast state UP group default qlen 1000
-        link/ether fa:16:3e:7d:f4:99 brd ff:ff:ff:ff:ff:ff
-        inet 172.23.4.179/16 brd 172.23.255.255 scope global eth0
-           valid_lft forever preferred_lft forever
-        inet6 fe80::f816:3eff:fe7d:f499/64 scope link 
-           valid_lft forever preferred_lft forever
-    root@network-node:~# ip link show dev br-ex
-    7: br-ex: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN mode DEFAULT group default 
-        link/ether e6:a0:2c:ce:1f:46 brd ff:ff:ff:ff:ff:ff
-    root@network-node:~# ip link show dev eth0
-    2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
-        link/ether fa:16:3e:7d:f4:99 brd ff:ff:ff:ff:ff:ff
-    root@network-node:~# ovs-vsctl add-port br-ex eth0
-    root@network-node:~# ifconfig br-ex 172.23.4.179/16
-    root@network-node:~# ifconfig eth0 0.0.0.0
-    root@network-node:~# ovs-vsctl set bridge br-ex other-config:hwaddr=fa:16:3e:7d:f4:99
-    root@network-node:~# ifconfig eth0 hw ether e6:a0:2c:ce:1f:46
-    root@network-node:~# route add default gw 172.23.0.1
+
+    root@network-node:~# ip a show dev eth1
+    3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast master ovs-system state UP group default qlen 1000
+    link/ether fa:16:3e:ae:63:d4 brd ff:ff:ff:ff:ff:ff
+    inet 10.0.0.10/24 brd 10.0.0.255 scope global eth1
+       valid_lft forever preferred_lft forever
+    inet6 fe80::f816:3eff:feae:63d4/64 scope link 
+       valid_lft forever preferred_lft forever
+
+    root@network-node:~# ip link show dev br-eth1
+    7: br-eth1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default 
+    link/ether 5e:25:0c:60:83:4d brd ff:ff:ff:ff:ff:ff
+
+    root@network-node:~# ovs-vsctl add-port br-eth1 eth1
+    root@network-node:~# ifconfig br-eth1 <IP_OF_THE_NETWORK_NODE_ON_THE_PUBLIC>/24
+    root@network-node:~# ifconfig eth1 0.0.0.0
+    root@network-node:~# ovs-vsctl set bridge br-eth1 other-config:hwaddr=<MACADDRESS_OF_ETH1>
+    root@network-node:~# ifconfig eth1 hw ether <MACADDRESS_OF_BR-ETH1>
+    root@network-node:~# route add default gw 10.0.0.1
 
 **IMPORTANT**: if you reboot this machine now, you will not be able to
-connect to it again. While adding the `eth0` interface to `br-ex`
+connect to it again. While adding the `eth1` interface to `br-eth1`
 bridge is *preserved* after a reboot, setting the IP and the mac
 address is not. You should update ``/etc/network/interfaces`` file to
 preserve these settings, but this is out of the scope if this tutorial.
