@@ -153,3 +153,14 @@ Requirements:
   masternode (NAT + firewall)
 * optionally: /home is stored on a cinder volume and exported to the
   compute nodes via NFS
+
+DoD (Definition of Done)
+------------------------
+
+The exercise can be considered completed IF AND ONLY IF:
+
+* given a public IP, we can login as user 'bofh' with password
+  'r00t15n0tthere' and submit a simple job using `srun` command
+* the job is executed on a node different from the one I'm logged in
+* I can check the status of the job with "squeue" and the status of
+  the cluster with "sinfo"

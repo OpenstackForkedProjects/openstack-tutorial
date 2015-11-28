@@ -128,3 +128,14 @@ One or more of the following hints could be helpful (or misleading):
 * security groups are defined so that any incoming traffec is blocked
   unless explicitly allowed
 * If you need persistent data you usually create a volume
+
+DoD (Definition of Done)
+------------------------
+
+The exercise can be considered completed IF AND ONLY IF:
+
+* Given an url of type http://130.60.24.[0-9]+/[a-zA-Z]+, I can run::
+
+      curl -s <url>
+
+  and get your name as output
