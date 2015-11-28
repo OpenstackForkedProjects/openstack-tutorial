@@ -193,6 +193,7 @@ options are set::
     # ...
     interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver    
     use_namespaces = True
+    external_network_bridge = br-eth1
 
 The DHCP agent (responsible for giving private IP addresses to the VMs
 using DHCP protocol) reads file
@@ -467,11 +468,13 @@ Testing nova
 As usual, you can set the environment variables to use the ``neutron`` command line
 without having to specify the credentials via command line options::
 
+    root@network-node:~# export OS_PROJECT_DOMAIN_ID=default
+    root@network-node:~# export OS_USER_DOMAIN_ID=default
+    root@network-node:~# export OS_PROJECT_NAME=admin
     root@network-node:~# export OS_USERNAME=admin
-    root@network-node:~# export OS_PASSWORD=gridka
-    root@network-node:~# export OS_TENANT_NAME=admin
-    root@network-node:~# export OS_AUTH_URL=http://auth-node.example.org:5000/v2.0
-
+    root@network-node:~# export OS_PASSWORD=openstack
+    root@network-node:~# export OS_AUTH_URL=http://auth-node.example.org:35357/v3
+    root@network-node:~# export OS_IDENTITY_API_VERSION=3
 
 Default networks
 ----------------
@@ -514,26 +517,28 @@ setup the relevant environment variables (`OS_USERNAME`,
 Let's now create the L3 network, using the range of floating IPs we
 decided to use::
 
-    root@network-node:~# neutron subnet-create ext-net --name ext-subnet \
-      --allocation-pool start=172.23.99.1,end=172.23.99.254 \
-      --disable-dhcp --gateway 172.23.0.1 \
-      172.23.0.0/16
-    Created a new subnet:
-    +------------------+------------------------------------------------+
-    | Field            | Value                                          |
-    +------------------+------------------------------------------------+
-    | allocation_pools | {"start": "172.16.1.1", "end": "172.16.1.254"} |
-    | cidr             | 172.16.0.0/16                                  |
-    | dns_nameservers  |                                                |
-    | enable_dhcp      | False                                          |
-    | gateway_ip       | 172.16.0.1                                     |
-    | host_routes      |                                                |
-    | id               | d7fc327b-8e04-43ce-bad4-98840b9b0927           |
-    | ip_version       | 4                                              |
-    | name             | ext-subnet                                     |
-    | network_id       | b09f88f7-be98-40e1-9911-d1127182de96           |
-    | tenant_id        | cacb2edc36a343c4b4747b8a8349371a               |
-    +------------------+------------------------------------------------+
+     root@network-node:~#  neutron subnet-create ext-net --name ext-subnet \
+     --allocation-pool start=10.0.0.100,end=10.0.0.200  --disable-dhcp \
+     --gateway 10.0.0.1  10.0.0.0/24 
+     +-------------------+----------------------------------------------+
+     | Field             | Value                                        |
+     +-------------------+----------------------------------------------+
+     | allocation_pools  | {"start": "10.0.0.100", "end": "10.0.0.200"} |
+     | cidr              | 10.0.0.0/24                                  |
+     | dns_nameservers   |                                              |
+     | enable_dhcp       | False                                        |
+     | gateway_ip        | 10.0.0.1                                     |
+     | host_routes       |                                              |
+     | id                | e50aa1aa-3e9e-4072-8146-bdcd45214b46         |
+     | ip_version        | 4                                            |
+     | ipv6_address_mode |                                              |
+     | ipv6_ra_mode      |                                              |
+     | name              | ext-subnet                                   |
+     | network_id        | 52a86e27-13d3-407f-af35-1560bd6134a4         |
+     | subnetpool_id     |                                              |
+     | tenant_id         | 3aab8a31a7124de690032b398a83db37             |
+>     +-------------------+----------------------------------------------+
+
 
 The ``--disable-dhcp`` option is needed because on this network we
 don't want to run a dhcp server.
