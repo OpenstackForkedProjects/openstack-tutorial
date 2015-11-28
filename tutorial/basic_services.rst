@@ -37,7 +37,7 @@ are intended to be used for both scenarios.
 Now please move on the db-node where we have to install the mariadb server.
 In order to do that please execute::
 
-    root@db-node # aptitude install -y mariadb-server python-pymysql
+    root@db-node # apt-get install -y mariadb-server
 
 you will be prompted for a password, it is better to specify a *good*
 one, since the MariaDB server will be accessible also via internet. You
@@ -46,10 +46,16 @@ reasonable entropy.
 
 For security reasons the MariaDB daemon listens on localhost only,
 port 3306. This has to be changed in order to make the server
-accessible from the all the OpenStack services. Edit the
-``/etc/mysql/my.cnf`` file and ensure that it contains the following line::
+accessible from all the OpenStack services. Edit the
+``/etc/mysql/my.cnf`` file and ensure that it contains the following
+line::
 
     bind-address            = <IP_OF_THE_DB_NODE_VM> 
+
+.. Of course, in this particular case the db-node is only accessible from
+.. within the private, isolated network `openstack-priv`, so the security
+.. needs are weaker and you could configure MariaDB to listen to
+.. `0.0.0.0` instead.
 
 This will make the MariaDB daemon listen only on the *private* interface. 
 
@@ -104,7 +110,7 @@ Check that MariaDB is actually running and listening on all the interfaces
 using the ``netstat`` command. 3306 is the port MariaDB listens to::
 
     root@db-node:~# netstat -nlp|grep 3306
-    tcp        0     10 0.0.0.3:3306            0.0.0.0:*               LISTEN      21926/mysqld    
+    tcp        0     <IP_OF_THE_DB_NODE_VM>:3306            0.0.0.0:*               LISTEN      21926/mysqld    
 
 
 RabbitMQ
@@ -117,7 +123,7 @@ brokers.
 
 Install RabbitMQ from the ubuntu repository::
 
-    root@db-node:~# aptitude install -y rabbitmq-server
+    root@db-node:~# apt-get install -y rabbitmq-server
         
 RabbitMQ does not need any specific configuration. On a production
 environment, however, you might need to create a specific user for
@@ -167,7 +173,7 @@ and then grant write permissions to /::
  
 By default RabbitMQ listens on port 5672, on all the available interfaces::
 
-    root@db-node:~# netstat -tnlp | grep 5672    
+    root@db-node:~# netstat -tnlp | grep 5672
     tcp6       0      0 :::5672                 :::*                    LISTEN      27903/beam      
 
 In order to prevent this, create (or modify, if it's already there)
@@ -183,7 +189,7 @@ Whenever you update this file, restart the daemon::
 and check again::
 
     root@db-node:~# netstat -tnlp | grep 5672
-    tcp        0      0 10.0.0.3:5672           0.0.0.0:*               LISTEN      28661/beam      
+    tcp        0      0 <IP_OF_THE_DB_NODE_VM>:5672           0.0.0.0:*               LISTEN      28661/beam      
 
 Now we will proceed with the other services, but since most of the
 services need to create a MariaDB account and database, you probably

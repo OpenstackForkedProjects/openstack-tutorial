@@ -27,10 +27,21 @@ private cloud and will create one instance per service:
 
 * ``hypervisor-2``: runs *nova-compute*
 
-However, due to limitation on the number of public IPs we have available 
-on the testbed, we will create one single bastion VM with a floating IP and
-use it to connect and manage the OpenStack VMs and also to forward traffic 
-destinated to the API to the correct VM.
+Each one of these nodes will run a specific OpenStack service. In
+general, you are not required to run each service on a different node,
+and in fact many OpenStack installations have a `controller node`
+running most of the services. However, it's good practice to separate
+the services, either using different hosts (virtual or physical) or
+using Linux Containers.
+
+Deploying OpenStack using Linux Containers is out of the scope of this
+workshop, but we still want to show you how things *should* be done,
+and this is why we will prepare one VM per service.
+
+Moreover, since the services usually assume that all the other
+services are running on the same host, some errors in the
+configuration file are not easy to spot until you deploy the services
+on separate hosts.
 
 Network configuration
 ---------------------
@@ -40,7 +51,7 @@ The big picture
 
 Services that usually need access to the public network in an
 OpenStack deployment are those that implements the network APIs and
-provice network connectivity to the VMs:
+provide network connectivity to the VMs:
 
 +--------------+---------------------------------+
 | node         | service requiring public access |
@@ -65,10 +76,11 @@ all the API services behind a load balancer. In this case, only the
 network node(s) will need direct access to at least one public
 network.
 
-During this workshop, however, we cannot provide the amount of public
-IPs that would be needed to test a fully functional OpenStack cloud to
-all of the attendees, therefore we will use a bastion host to redirect
-(using DNAT) the traffic to the correct service.
+However, installation of a load balancer is out of the scope of this
+tutorial, and since we cannot provide the amount of public IPs that
+would be needed to test a fully functional OpenStack cloud to all of
+the attendees, we will use a bastion host to redirect (using DNAT) the
+traffic to the correct service.
 
 .. note: there are other practical reasons: unless you give neutron an
 .. interface directly on the public network, floating IPs will not
@@ -156,7 +168,7 @@ There are multiple options:
 * use ssh port forwarding to redirect, for each node, a local port on
   your laptop to the remote tcp/22 port of the node
 
-We strongly suggest to use sshuttle, and to modify your local
+We strongly suggest you to use sshuttle, and to modify your local
 ``/etc/hosts`` file to easily access the OpenStack VMs using the
 names.
 
@@ -177,38 +189,11 @@ Then, add this file to ``/etc/hosts`` on all the machines::
     user@ubuntu:~$ for ip in $IPS; do cat /tmp/hosts | ssh root@$ip 'cat >> /etc/hosts'; done
 
 
+Configuring Neutron networks
+++++++++++++++++++++++++++++
 
-Preparing the virtual machines
-------------------------------
-
-Open the browser at http://cscs2015.s3it.uzh.ch/horizon and login using one
-of the very secret login/password we gave you. Each one of you will
-have a project on its own, called `projectNN` and an user belonging to
-that project, called `userNN`. The teacher will use `user01` and `project01` 
-while the tutor will user `user20` and `project20`.
-
-Since we are going to use the bastion host for connecting to the VMs where the 
-OpenStack services will be installed we have to be ensure ourself access is 
-to those VMs is possible. There are two different ways to achieve that:
-
-- enable the `ForwardAgent` in your ssh configuration,
-- create a new keypair on the bastion host and add it to
-  your account on https://cscs2015.s3it.uzh.ch.
-
-You can create the virtual machines either via web interface or, if
-you install on your laptop the following packages, also from the
-command line:
-
-* python-novaclient
-* python-keystoneclient
-* python-cinderclient
-* python-neutronclient
-* python-glanceclient
-
-Hands-on preparing the environment
-----------------------------------
-
-First of all create a network which will simualte the "public" network in real world scenario::
+First of all create a network which will simualte the "public" network
+in real world scenario::
 
    user@ubuntu:~$ neutron net-create openstack-public
 
@@ -227,9 +212,12 @@ First of all create a network which will simualte the "public" network in real w
    | tenant_id             | f4c492a4c3744a85bc654ecbe592d478     |
    +-----------------------+--------------------------------------+
 
-Then create a subnet inside the network we have just created:: 
+Then create a subnet inside the network we have just created::
 
-   user@ubuntu:~$ neutron subnet-create openstack-public 10.0.0.0/24 --name openstack-public-subnet --allocation-pool start=10.0.0.3,end=10.0.0.254 --enable-dhcp --gateway 10.0.0.1 
+   user@ubuntu:~$ neutron subnet-create openstack-public 10.0.0.0/24 \
+      --name openstack-public-subnet \
+      --allocation-pool start=10.0.0.3,end=10.0.0.254 \
+      --enable-dhcp --gateway 10.0.0.1 
    
    Created a new subnet:
    +-------------------+--------------------------------------------+
@@ -268,17 +256,23 @@ Create a router to be used of connecting the 'uzh-public' (so, Internet) to the 
     | tenant_id             | f4c492a4c3744a85bc654ecbe592d478     |
     +-----------------------+--------------------------------------+
 
-Add an interface (it is like adding a physical patch) from the openstack-public-subnet to the router we have just created::
+Add an interface (it is like adding a physical patch) from the
+openstack-public-subnet to the router we have just created::
 
-    user@ubuntu:~$ neutron router-interface-add openstack-public-to-uzh-public openstack-public-subnet
+    user@ubuntu:~$ neutron router-interface-add \
+        openstack-public-to-uzh-public \
+        openstack-public-subnet
     Added interface 38f22ccf-88cd-4a4f-8719-82caad291b60 to router openstack-public-to-uzh-public.
 
 Set the router to act as a gateway for the uzh-public network::
 
-    user@ubuntu:~$ neutron router-gateway-set openstack-public-to-uzh-public uzh-public
+    user@ubuntu:~$ neutron router-gateway-set \
+      openstack-public-to-uzh-public \
+      uzh-public
     Set gateway for router openstack-public-to-uzh-public
 
-Now we go on with creating the network which will simulate the private network of the OpenStack installation::
+Now we go on with creating the network which will simulate the private
+network of the OpenStack installation::
 
     user@ubuntu:~$ neutron net-create openstack-priv
     Created a new network:
@@ -297,9 +291,16 @@ Now we go on with creating the network which will simulate the private network o
     | tenant_id             | f4c492a4c3744a85bc654ecbe592d478     |
     +-----------------------+--------------------------------------+
 
-Create a subnet in the network we have just created:: 
+Create a subnet in the network we have just created::
 
-    user@ubuntu:~$ neutron subnet-create openstack-priv 192.168.1.0/24 --name openstack-priv-subnet --dns-nameserver "130.60.128.3" --dns-nameserver "130.60.64.51" --allocation-pool start=192.168.1.3,end=192.168.1.254 --enable-dhcp --no-gateway
+    user@ubuntu:~$ neutron subnet-create openstack-priv \
+      192.168.1.0/24 \
+      --name openstack-priv-subnet \
+      --dns-nameserver "130.60.128.3" \
+      --dns-nameserver "130.60.64.51" \
+      --allocation-pool start=192.168.1.3,end=192.168.1.254 \
+      --enable-dhcp \
+      --no-gateway
     Created a new subnet:
     +-------------------+--------------------------------------------------+
     | Field             | Value                                            |
@@ -321,25 +322,167 @@ Create a subnet in the network we have just created::
     | tenant_id         | f4c492a4c3744a85bc654ecbe592d478                 |
     +-------------------+--------------------------------------------------+
 
-In our setup we are going to use a "bastion VM" as a gateway for the rest of the OpenStack services. Since by default Ubuntu is bringing up only the first network interface and the routing between the "openstack-public" and the "uzh-public" is provided by the "openstack-public-to-uzh-public" router when starting the VM we have to ensure that "openstack-public" is provided via NIC1 as shown on the picture. 
-    
+Some notes on the creation of this network:
+
+* we need to add the dns nameservers to ensure the internal dnsmasq of
+  OpenStack will forward the dns requests.
+* we are creating an *isoltated network* (``--no-gateway``), i.e. we
+  will not connect this network to a router. The bastion will work as
+  a router for it.
+* since we disabled the gateway, we will need to *inject* the default
+  route to the VMs in a different way, but we haven't started the
+  bastion host yet, so we don't know which route to inject :)
+
+.. FIXME: why do we need to remove the gw? I forgot.
+
+
+Starting the virtual machines
+-----------------------------
+
+.. Open the browser at http://cscs2015.s3it.uzh.ch/horizon and login
+.. using one of the very secret login/password we gave you. Each one of
+.. you will have a project on its own, called `projectNN` and an user
+.. belonging to that project, called `userNN`. The teacher will use
+.. `user01` and `project01` while the tutor will user `user20` and
+.. `project20`.
+
+.. Since we are going to use the bastion host for connecting to the VMs
+.. where the OpenStack services will be installed we have to be ensure
+.. ourself access is to those VMs is possible. There are two different
+.. ways to achieve that:
+
+.. - use sshuttle and connect to the VMs directly from the lab
+.. - enable the `ForwardAgent` in your ssh configuration, ssh to the
+..   bastion and then to the other VMs
+.. - create a new ssh key on the bastion host and add import it as a new
+..   keypair on the outer cloud, so that you can connect from the bastion.
+
+
+In our setup we are going to use a "bastion VM" as a gateway for the
+rest of the OpenStack services. Since by default Ubuntu is bringing up
+only the first network interface [#sadnote]_ and the routing between the
+"openstack-public" and the "uzh-public" is provided by the
+"openstack-public-to-uzh-public" router, when starting the VM we have
+to ensure that "openstack-public" is provided via NIC1 as shown on the
+picture.
+
 
 .. image:: ../images/bastion_networking.png
 
 
-Once the VM is up and running take note of the IP assigned on the openstack-priv
-network and change the openstack-priv network to use that IP as a gateway::                  
+Of course, the order is preserved also when you start from command
+line.
 
-   user@ubuntu:~$ neutron subnet-update openstack-priv-subnet --host-route destination=0.0.0.0/0,nexthop=<IP_OF_THE_BASTION_ON_THE_PRIV_NETWORK>
+Assume this is the output of ``nova net-list``::
 
-Next step is disabling the security constrains Neutron is a applying in order to avoid arp spoofing. In our case this optsion will prevent MASQUERADING to work properly. In order to do this you have to find the port used from the bastion host on the openstack-priv network::
+    +--------------------------------------+------------------+------+
+    | ID                                   | Label            | CIDR |
+    +--------------------------------------+------------------+------+
+    | 4cb131d5-5ece-4122-9014-ac069cd8d4a3 | uzh-public       | None |
+    | 9a4ce8c1-950c-4432-86ef-a8ba4a9d0e28 | openstack-public | None |
+    | dad2ca78-380e-48aa-8454-1218feb47947 | openstack-priv   | None |
+    +--------------------------------------+------------------+------+
 
-   user@ubuntu:~$ neutron port-list | grep <IP_OF_THE_BASTION_ON_THE_PRIV_NETWORK>
-   ede0a89a-4830-4780-a290-50c9cfd806a7 |      | fa:16:3e:18:93:cb | {"subnet_id": "c942c430-f819-4832-84a3-99da71323770", "ip_address": "<IP>"}
+we will start our bastion host with::
+
+    user@ubuntu:~$ nova boot --key-name antonio --image ubuntu-trusty --nic net-id=9a4ce8c1-950c-4432-86ef-a8ba4a9d0e28 --nic net-id=dad2ca78-380e-48aa-8454-1218feb47947 --flavor m1.small bastion
+    +--------------------------------------+------------------------------------------------------+
+    | Property                             | Value                                                |
+    +--------------------------------------+------------------------------------------------------+
+    | OS-DCF:diskConfig                    | MANUAL                                               |
+    | OS-EXT-AZ:availability_zone          | nova                                                 |
+    | OS-EXT-STS:power_state               | 0                                                    |
+    | OS-EXT-STS:task_state                | scheduling                                           |
+    | OS-EXT-STS:vm_state                  | building                                             |
+    | OS-SRV-USG:launched_at               | -                                                    |
+    | OS-SRV-USG:terminated_at             | -                                                    |
+    | accessIPv4                           |                                                      |
+    | accessIPv6                           |                                                      |
+    | adminPass                            | aW4xmTkbfULE                                         |
+    | config_drive                         |                                                      |
+    | created                              | 2015-11-28T11:31:07Z                                 |
+    | flavor                               | m1.small (2)                                         |
+    | hostId                               |                                                      |
+    | id                                   | 8c03b65a-1c2f-46f6-a96b-db37ecd17955                 |
+    | image                                | ubuntu-trusty (588e1d38-c9ba-4481-a484-67bbc83935b3) |
+    | key_name                             | antonio                                              |
+    | metadata                             | {}                                                   |
+    | name                                 | bastion                                              |
+    | os-extended-volumes:volumes_attached | []                                                   |
+    | progress                             | 0                                                    |
+    | security_groups                      | default                                              |
+    | status                               | BUILD                                                |
+    | tenant_id                            | 648477bbdd0747bfa07497194f20aac3                     |
+    | updated                              | 2015-11-28T11:31:07Z                                 |
+    | user_id                              | 71aad312e9bf420b8cfe83715b60e691                     |
+    +--------------------------------------+------------------------------------------------------+
+
+Ensure you have a free floating IP::
+
+    antonio@kenny:~$ nova floating-ip-create uzh-public
+    +--------------------------------------+---------------+-----------+----------+------------+
+    | Id                                   | IP            | Server Id | Fixed IP | Pool       |
+    +--------------------------------------+---------------+-----------+----------+------------+
+    | caa28fb1-3f7f-406c-94ad-408089f1167c | 130.60.24.120 | -         | -        | uzh-public |
+    +--------------------------------------+---------------+-----------+----------+------------+
+
+and associate it to the bastion::
+
+    antonio@kenny:~$ nova floating-ip-associate bastion 130.60.24.120
+
+Once the VM is up and running take note of the IP assigned on the
+openstack-priv network and change the openstack-priv network to use
+that IP as a gateway::
+
+   user@ubuntu:~$ neutron subnet-update openstack-priv-subnet \
+     --host-route destination=0.0.0.0/0,nexthop=<IP_OF_THE_BASTION_ON_THE_PRIV_NETWORK>
+
+Of course, you have to configure the bastion network by hand. Edit
+``/etc/network/interfaces.d/eth1.cfg``::
+
+    root@bastion:~# cat > /etc/network/interfaces.d/eth1.cfg <<EOF
+    auto eth1
+    iface eth1 inet static
+      address 192.168.1.4
+      netmask 255.255.255.0
+    EOF
+    root@bastion:~# ifup eth1
+
+We also need to configure forwarding and masquerading for the private
+network. Again, this is out of the scope of the tutorial, but just as
+a reference these are the commands that you shuold issue::
+   
+   root@bastion:~# echo 1 > /proc/sys/net/ipv4/ip_forward
+   root@bastion:~# iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+   root@bastion:~# iptables -A FORWARD -i eth1 -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+   root@bastion:~# iptables -A FORWARD -i eth0 -o eth1 -j ACCEPT
+
+You can persist those changes using by:
+
+- use iptables-save to save the iptables rules,
+- set net.ipv4.ip_forward=1 inside /etc/sysctl.conf. 
+
+.. Next step is disabling the security constrains Neutron is a applying
+.. in order to avoid arp spoofing. In our case this optsion will prevent
+.. MASQUERADING to work properly. In order to do this you have to find
+.. the port used from the bastion host on the openstack-priv network::
+
+However, this is not working unless we disable the port security on
+neutron::
+
+    user@ubuntu:~$ nova interface-list bastion
+    +------------+--------------------------------------+--------------------------------------+--------------+-------------------+
+    | Port State | Port ID                              | Net ID                               | IP addresses | MAC Addr          |
+    +------------+--------------------------------------+--------------------------------------+--------------+-------------------+
+    | ACTIVE     | 38d19638-dfdf-4ec8-b147-94ee13fe8477 | 9a4ce8c1-950c-4432-86ef-a8ba4a9d0e28 | 10.0.0.4     | fa:16:3e:5f:77:76 |
+    | ACTIVE     | d1c936fd-ac6b-4d1c-a154-d07d4dce48b8 | dad2ca78-380e-48aa-8454-1218feb47947 | 192.168.1.4  | fa:16:3e:bc:c2:36 |
+    +------------+--------------------------------------+--------------------------------------+--------------+-------------------+
 
 Disable the security groups and port security on that port::
 
-   user@ubuntu:~$ neutron port-update --no-security-groups --port-security-enabled=False ede0a89a-4830-4780-a290-50c9cfd806a7
+   user@ubuntu:~$ neutron port-update --no-security-groups \
+     --port-security-enabled=False \
+     d1c936fd-ac6b-4d1c-a154-d07d4dce48b8
 
 ..    
     There is a problem with this option since Neutron is blocking the forwared connections. 
@@ -349,44 +492,46 @@ Disable the security groups and port security on that port::
     2919  245K DROP       all  --  any    any     anywhere             anywhere             /* Drop traffic without an IP/MAC allow rule. */
     We fixed this by adding xtension_drivers = port_security in /etc/neutron/plugins/ml2/ml2_conf.ini. This will create the relative entry in the database so next time network is created the "port_security_enabled" filed will be available and operations over it will be grated 
 
-When done with this go on with assigning a floating IP on uzh-public network. Please do it over the GUI, since more immediate.
-
-Login to the bastion VM and configure the masquerading::
-
-   root@bastion:~# dhclient eth1
-   root@bastion:~# iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-   root@bastion:~# iptables -A FORWARD -i eth1 -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
-   root@bastion:~# iptables -A FORWARD -i eth0 -o eth1 -j ACCEPT
-   root@bastion:~# echo 1 > /proc/sys/net/ipv4/ip_forward
-
-You can persist those changes using by:
-
-- use iptables-save to save the iptables rules,
-- set net.ipv4.ip_forward=1 inside /etc/sysctl.conf. 
-
-Assuming everything worked smoothly in the steps above you can start with booting all the VMs we will need for setting up the OpenStack installation::
+Assuming everything worked smoothly in the steps above you can start
+with booting all the VMs we will need for setting up the OpenStack
+installation::
 
     user@ubuntu:~$ nova net-list
     +--------------------------------------+------------------+------+
     | ID                                   | Label            | CIDR |
     +--------------------------------------+------------------+------+
     | 4cb131d5-5ece-4122-9014-ac069cd8d4a3 | uzh-public       | None |
-    | 5a3feca5-2be5-4943-8f9d-9f3b8eb74c35 | openstack-priv   | None |
-    | 7ff18d6e-12c1-41a9-b0c7-dabc7fc44eab | openstack-public | None |
+    | 9a4ce8c1-950c-4432-86ef-a8ba4a9d0e28 | openstack-public | None |
+    | dad2ca78-380e-48aa-8454-1218feb47947 | openstack-priv   | None |
     +--------------------------------------+------------------+------+
 
-and you have a keypair named `bastion`, you can start the `db-node auth-node image-node volume-node api-node hypervisor-1 hypervisor-2` nodes with the following command::
+Now we can start all the other VMs::
 
-    user@ubuntu:~$ for i in db-node auth-node image-node volume-node api-node hypervisor-1 hypervisor-2; do nova boot --key-name bastion --image ubuntu-trusty --flavor m1.small --nic net-id=<ID_OF_THE_OPENSTACK_PRIV_NETWORK> $i; done
+    user@ubuntu:~$ for node in {db,auth,image,volume,compute}-node hypervisor-{1,2};
+      do nova boot --key-name antonio \
+      --image ubuntu-trusty \
+      --flavor m1.small \
+      --nic net-id=$(neutron net-show -c id -f value openstack-priv) \
+      $node
+      done
 
-Since the network node needs an interface on the openstack-public interface we have to start it seprately using the following command::
+Since the network node needs an interface on the openstack-public
+interface we have to start it seprately using the following command::
 
-    user@ubuntu:~$ nova boot --key-name bastion --image ubuntu-trusty --flavor m1.small --nic net-id=<ID_OF_THE_OPENSTACK_PRIV_NETWORK> --nic net-id=<ID_OF_THE_OPENSTACK_PUB_NETWORK>network-node
+    user@ubuntu:~$ nova boot --key-name antonio \
+      --image ubuntu-trusty \
+      --flavor m1.small \
+      --nic net-id=$(neutron net-show -c id -f value openstack-priv) \
+      --nic net-id=$(neutron net-show -c id -f value openstack-public) \
+      network-node
+
+.. FIXME: doesn't it mess up with the routing of the network node? To check
 
 Access the Virtual Machines
 ---------------------------
 
-If you setup your access method correctly you should be able to login on all VMs from the bastion host.
+If you setup your access method correctly you should be able to login
+on all VMs from the bastion host.
 
 You can see the IP address of the VM via web interface or using `nova` command::
 
@@ -406,16 +551,35 @@ You can see the IP address of the VM via web interface or using `nova` command::
     +--------------------------------------+--------------+--------+------------+-------------+----------------------------------------------------------------------+
 
 
-You should be able to connect from the bastion host using regular user `ubuntu`::
+Let's use sshuttle to connect directly to the nodes, just run the
+following::
 
-    ubuntu@bastion:~$ ssh ubuntu@192.168.1.8
-    The authenticity of host '192.168.1.8 (192.168.1.8)' can't be established.
-    ECDSA key fingerprint is 5a:90:f5:aa:e7:61:63:d6:3b:ce:13:92:b9:32:5c:95.
-    Are you sure you want to continue connecting (yes/no)? yes
-    Warning: Permanently added '192.168.1.8' (ECDSA) to the list of known hosts.
-    Welcome to Ubuntu 14.04.3 LTS (GNU/Linux 3.13.0-68-generic x86_64)
-    ...
-    ubuntu@db-node:~$ 
+    user@ubuntu:~$ sshuttle -r ubuntu@130.60.24.120 192.168.1.0/24 10.0.0.0/24
+
+You might want to update the ``/etc/hosts`` of your laptop to add the
+private IPs to the VMs. Something like this will do the trick::
+
+    user@ubuntu:~$ openstack server list -c Networks -c Name \
+    -f value |\
+    sed 's/^\([^ ]*\) openstack-priv=\([^,;]*\).*/\2    \1/' > /tmp/hosts
+
+If everything worked as expected, you should be able to connect to the
+single nodes. Since I'm lazy and I want to connect directly as root, I
+will also run::
+
+
+    user@ubuntu:~$ for node in \
+      {db,auth,image,volume,compute,network}-node hypervisor-{1,2}
+      do ssh ubuntu@$node 'sudo sed -i "s/.*ssh-/ssh-/g" /root/.ssh/authorized_keys'
+      done
+
+Let's also update the ``/etc/hosts`` also on those nodes::
+
+    user@ubuntu:~$ for node in \
+      {db,auth,image,volume,compute,network}-node hypervisor-{1,2};
+      do cat /tmp/hosts | ssh root@$node 'cat >> /etc/hosts';  done
+
+Now you should be able to connect to any node with ssh from your laptop.
 
 
 Install openstack repository and ntp
@@ -429,10 +593,10 @@ idea to
 * install NTP (not needed, but strongly recommended, especially when
   troubleshooting)
 
-From the bastion host::
+::
 
-    root@bastion:$ for node in {db,auth,image,compute,volume,neutron}-node hypervisor-{1,2}; do
-    ssh $node 'apt-get install -y software-properties-common;
+    user@ubuntu:$ for node in {db,auth,image,compute,volume,neutron}-node hypervisor-{1,2}; do
+    ssh root@$node 'apt-get install -y software-properties-common;
        add-apt-repository -y cloud-archive:liberty;
        apt-get update -y;
        apt-get upgrade -y;
@@ -440,4 +604,10 @@ From the bastion host::
     done
 
 (can take a while, let's have a coffe in the meantime)
-    
+
+Note: you can also use `pdsh` to parallelize the process.
+
+.. [#sadnote] Sad note: in Windows 2012 this is done
+              automatically. I'm pretty sure you can do something with
+              udev but the fact is: out-of-the-box ubuntu does not
+              configure it automatically.
