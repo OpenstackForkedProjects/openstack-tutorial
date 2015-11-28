@@ -65,18 +65,18 @@ Please note that almost every OpenStack service will need a private
 database, which means that we are going to run commands similar to the
 previous one a lot of times.
 
-In Kilo and Liberty the eventlet is depricated in favor of a separate web server 
+In Kilo and Liberty the eventlet is deprecated in favor of a separate web server 
 with WSGI extentions. We will use the mod_wsgi module of Apache HTTP to provide
 requests on port 5000 and 35357. 
 
 Go to the **auth-node** and as a first step disable the keystone service for starting 
 the automatically after installation:: 
 
-    echo "manual" > /etc/init/keystone.override
+    root@auth-node:~# echo "manual" > /etc/init/keystone.override
 
 Proceed with installing the keystone and all the needed packages:: 
 
-    root@auth-node:~# aptitude install keystone python-openstackclient apache2 libapache2-mod-wsgi memcached python-memcache
+    root@auth-node:~# apt-get install keystone python-openstackclient apache2 libapache2-mod-wsgi memcached python-memcache
 
 This step installes also the `keystone-pythonclient` package (as adependency of the keystone package)
 which is the CLI for interactig with keystone.
@@ -104,13 +104,17 @@ So in our case you need to replace the default option with::
 
 Now you are ready to bootstrap the keystone database using the following command::
 
-    root@auth-node:~# su -s /bin/sh -c "keystone-manage db_sync" keystone
+    root@auth-node:~# keystone-manage db_sync
+
+    .. ANTONIO: Trying to run it as regular user, it's probably OK
+    .. root@auth-node:~# su -s /bin/sh -c "keystone-manage db_sync" keystone
 
 Configure the Apache HTTP server by opening /etc/apache2/apache2.conf and change the
 ``ServerName controller`` to the hostname of the controller (auth-node) in our case:
 ``ServerName auth-node.example.org``.
 
-Create the ``/etc/apache2/sites-available/wsgi-keystone.conf`` with the following contents:: 
+Create the ``/etc/apache2/sites-available/wsgi-keystone.conf`` with
+the following contents::
 
     Listen 5000
     Listen 35357
@@ -161,9 +165,13 @@ Create the ``/etc/apache2/sites-available/wsgi-keystone.conf`` with the followin
         </Directory>
     </VirtualHost> 
 
-At the end enable the Identity service virtual hosts::
+.. *
 
-    ln -s /etc/apache2/sites-available/wsgi-keystone.conf /etc/apache2/sites-enabled
+At the end enable the Identity service virtual hosts and reload apache
+configuration::
+
+    root@auth-node:~# a2ensite wsgi-keystone
+    root@auth-node:~# service apache2 reload
 
 Keystone by default listens to two different ports::
 
@@ -177,13 +185,17 @@ Keystone by default listens to two different ports::
     tcp6       0      0 :::5000                 :::*                    LISTEN      8597/apache2    
     tcp6       0      0 :::80                   :::*                    LISTEN      8597/apache2 
 
-As you can see apache2 is listening using only over tcp6, in order to fix this you have to
-disable ipv6 in ``/etc/sysctl.conf`` by adding the line: ``net.ipv6.conf.all.disable_ipv6 = 1`` and load 
-the changes::
+.. ANTONIO: This is not true: even if it says ::::5000, it's actually
+.. listening on both IPv4 and IPv6
+
+.. As you can see apache2 is listening using only over tcp6, in order to
+.. fix this you have to disable ipv6 in ``/etc/sysctl.conf`` by adding
+.. the line: ``net.ipv6.conf.all.disable_ipv6 = 1`` and load the
+.. changes::
 
 
-    root@auth-node:~# sysctl -p
-    root@auth-node:~# service apache2 restart
+..     root@auth-node:~# sysctl -p
+..     root@auth-node:~# service apache2 restart
 
 ..
    **NOTE:** At the time of writing (01-08-2014), in Ubuntu 14.40
@@ -232,7 +244,7 @@ In our case, since we don't have an admin user yet and we need to use
 the admin token, we will set the following environment variables::
 
     root@auth-node:~# export OS_TOKEN=ADMIN
-    root@auth-node:~# export OS_URL=http://auth-node.example.org:35357/v3 
+    root@auth-node:~# export OS_URL=http://auth-node:35357/v3 
     root@auth-node:~# export OS_IDENTITY_API_VERSION=3 
 
 
@@ -280,7 +292,7 @@ correct environment variables::
 
 Create the **admin** user::
 
-    openstack user create --domain default --password-prompt admin
+    root@auth-node:~# openstack user create --domain default --password-prompt admin
     User Password:
     Repeat User Password:
     +-----------+----------------------------------+
@@ -306,8 +318,7 @@ Go on by creating the different roles::
 These roles are checked by different services. It is not really easy to know which 
 service checks for which role, but on a very basic installation you can just live with
 ``_member_`` (to be used for all the standard users) and ``admin`` 
-(to be used for the OpenStack administrators). ``_member_`` role is defined by default
-and is already available. 
+(to be used for the OpenStack administrators).
 
 Roles are assigned to an user **per-project**. However, if you have the
 admin role on just one tenant **you actually are the administrator of
@@ -315,7 +326,7 @@ the whole OpenStack installation!**
 
 Assign administrative roles to the admin and _member_ users::
 
-    root@auth-node:~#  openstack role add --project admin --user admin admin 
+    root@auth-node:~# openstack role add --project admin --user admin admin 
 
 Note that the command does not print any confirmation on successful
 completion, so you have to check it using ``openstack role list`` command::
@@ -355,15 +366,15 @@ Go on with creating a demo user and project::
     | name      | demo                             |
     +-----------+----------------------------------+
 
-    root@auth-node:~# openstack role create user
+    root@auth-node:~# openstack role create _member_
     +-------+----------------------------------+
     | Field | Value                            |
     +-------+----------------------------------+
     | id    | 7a3531b9d2564ad3b446b006ed11a463 |
-    | name  | user                             |
+    | name  | _member_                         |
     +-------+----------------------------------+
 
-    root@auth-node:~# openstack role add --project demo --user demo user
+    root@auth-node:~# openstack role add --project demo --user demo _member_
 
 Please note that the last command will NOT print any output on successful termination.
 
@@ -394,24 +405,28 @@ The "**identity**" service is created with the following command::
     | type        | identity                         |
     +-------------+----------------------------------+
 
-The following command will create an endpoint associated to this service::
+The following command will create an endpoint associated to this
+service. About the IP: if you plan to use sshuttle also to connect to
+the API of the *inner* cloud, you should use the private IP of the
+specific service. If you are using DNAT (or haproxy), you can use the
+public IP of the bastion host::
 
-    openstack endpoint create --region RegionOne identity public http://auth-node.example.org:5000/v2.0
-    +--------------+----------------------------------------+
-    | Field        | Value                                  |
-    +--------------+----------------------------------------+
-    | enabled      | True                                   |
-    | id           | 4e2d0570fd434ddbab7b254c1c3b4524       |
-    | interface    | public                                 |
-    | region       | RegionOne                              |
-    | region_id    | RegionOne                              |
-    | service_id   | 3f0f1773c3bf423da9efedd73fb4cc48       |
-    | service_name | keystone                               |
-    | service_type | identity                               |
-    | url          | http://auth-node.example.org:5000/v2.0 |
-    +--------------+----------------------------------------+
+    openstack endpoint create --region RegionOne identity public http://130.60.24.120:5000/v2.0
+    +--------------+-----------------------------------+
+    | Field        | Value                             |
+    +--------------+-----------------------------------+
+    | enabled      | True                              |
+    | id           | 4e2d0570fd434ddbab7b254c1c3b4524  |
+    | interface    | public                            |
+    | region       | RegionOne                         |
+    | region_id    | RegionOne                         |
+    | service_id   | 3f0f1773c3bf423da9efedd73fb4cc48  |
+    | service_name | keystone                          |
+    | service_type | identity                          |
+    | url          | http://130.60.24.120:5000/v2.0    |
+    +--------------+-----------------------------------+
 
-    openstack endpoint create --region RegionOne identity internal http://auth-node.example.org:5000/v2.0
+    openstack endpoint create --region RegionOne identity internal http://auth-node:5000/v2.0
     +--------------+----------------------------------------+
     | Field        | Value                                  |
     +--------------+----------------------------------------+
@@ -423,10 +438,10 @@ The following command will create an endpoint associated to this service::
     | service_id   | 3f0f1773c3bf423da9efedd73fb4cc48       |
     | service_name | keystone                               |
     | service_type | identity                               |
-    | url          | http://auth-node.example.org:5000/v2.0 |
+    | url          | http://auth-node:5000/v2.0             |
     +--------------+----------------------------------------+
 
-    openstack endpoint create --region RegionOne identity admin http://auth-node.example.org:35357/v2.0
+    openstack endpoint create --region RegionOne identity admin http://130.60.24.120:35357/v2.0
     +--------------+-----------------------------------------+
     | Field        | Value                                   |
     +--------------+-----------------------------------------+
@@ -438,7 +453,7 @@ The following command will create an endpoint associated to this service::
     | service_id   | 3f0f1773c3bf423da9efedd73fb4cc48        |
     | service_name | keystone                                |
     | service_type | identity                                |
-    | url          | http://auth-node.example.org:35357/v2.0 |
+    | url          | http://130.60.24.120:35357/v2.0         |
     +--------------+-----------------------------------------+
 
 The argument of the ``--region`` option is the region name. For simplicity we will always
@@ -456,13 +471,13 @@ To get a listing of the available services the command is::
 while a list of endpoints is shown by the command::
 
     root@auth-node:~# openstack endpoint list
-    +----------------------------------+-----------+--------------+--------------+---------+-----------+-----------------------------------------+
-    | ID                               | Region    | Service Name | Service Type | Enabled | Interface | URL                                     |
-    +----------------------------------+-----------+--------------+--------------+---------+-----------+-----------------------------------------+
-    | 0afed953c2fd40b69d7cd6f55e88dd95 | RegionOne | keystone     | identity     | True    | admin     | http://auth-node.example.org:35357/v2.0 |
-    | 4e2d0570fd434ddbab7b254c1c3b4524 | RegionOne | keystone     | identity     | True    | public    | http://auth-node.example.org:5000/v2.0  |
-    | dd7fbe5f6e064d5d9e2d6b3ec84c445e | RegionOne | keystone     | identity     | True    | internal  | http://auth-node.example.org:5000/v2.0  |
-    +----------------------------------+-----------+--------------+--------------+---------+-----------+-----------------------------------------+
+    +----------------------------------+-----------+--------------+--------------+---------+-----------+---------------------------------+
+    | ID                               | Region    | Service Name | Service Type | Enabled | Interface | URL                             |
+    +----------------------------------+-----------+--------------+--------------+---------+-----------+---------------------------------+
+    | 0afed953c2fd40b69d7cd6f55e88dd95 | RegionOne | keystone     | identity     | True    | admin     | http://130.60.24.120:35357/v2.0 |
+    | 4e2d0570fd434ddbab7b254c1c3b4524 | RegionOne | keystone     | identity     | True    | public    | http://130.60.24.120:5000/v2.0  |
+    | dd7fbe5f6e064d5d9e2d6b3ec84c445e | RegionOne | keystone     | identity     | True    | internal  | http://auth-node:5000/v2.0      |
+    +----------------------------------+-----------+--------------+--------------+---------+-----------+---------------------------------+
 
 Some notes on the type of URLs: 
 
@@ -490,7 +505,7 @@ to create two files containing the following environment variables::
     export OS_TENANT_NAME=admin
     export OS_USERNAME=admin
     export OS_PASSWORD=ADMIN_PASS
-    export OS_AUTH_URL=http://auth-node.example.org35357/v3
+    export OS_AUTH_URL=http://130.60.24.120:35357/v3
     export OS_IDENTITY_API_VERSION=3
 
     root@any-host:~# cat demo.sh 
@@ -500,7 +515,7 @@ to create two files containing the following environment variables::
     export OS_TENANT_NAME=demo
     export OS_USERNAME=demo
     export OS_PASSWORD=DEMO_PASS
-    export OS_AUTH_URL=http://auth-node.example.org:5000/v3
+    export OS_AUTH_URL=http://130.60.24.120:5000/v3
     export OS_IDENTITY_API_VERSION=3
 
 So that you can load them whenever you need to with::
@@ -516,8 +531,10 @@ the password, and you will not risk saving sensible information on disk...
 Please keep the connection to the `auth-node` open as we will need to
 operate on it briefly.
 
-Further information about the keystone service can be found at in the
-`official documentation <http://docs.openstack.org/icehouse/install-guide/install/apt/content/ch_keystone.html>`_
+.. FIXME: update the link
+.. Further information about the keystone service can be found at in the
+.. `official documentation <http://docs.openstack.org/icehouse/install-guide/install/apt/content/ch_keystone.html>`_
+
 
 Removing the admin token
 ------------------------
@@ -536,26 +553,22 @@ The final result should looks like::
     [pipeline:public_api]
     # The last item in this pipeline must be public_service or an equivalent
     # application. It cannot be a filter.
-    pipeline = sizelimit url_normalize build_auth_context token_auth ec2_extension user_crud_extension public_service
+    pipeline = sizelimit url_normalize request_id build_auth_context token_auth json_body ec2_extension user_crud_extension public_service
 
     [pipeline:admin_api]
     # The last item in this pipeline must be admin_service or an equivalent
     # application. It cannot be a filter.
-    pipeline = sizelimit url_normalize build_auth_context token_auth ec2_extension s3_extension crud_extension admin_service
+    pipeline = sizelimit url_normalize request_id build_auth_context token_auth json_body ec2_extension s3_extension crud_extension admin_service
 
     [pipeline:api_v3]
     # The last item in this pipeline must be service_v3 or an equivalent
     # application. It cannot be a filter.
-    pipeline = sizelimit url_normalize build_auth_context token_auth ec2_extension_v3 s3_extension simple_cert_extension revoke_extension service_v3
+    pipeline = sizelimit url_normalize request_id build_auth_context token_auth json_body ec2_extension_v3 s3_extension simple_cert_extension revoke_extension federation_extension oauth1_extension endpoint_filter_extension service_v3
 
-As usual, remember to restart the `keystone` service after you update
+As usual, remember to restart the `apache2` service after you update
 the configuration file.
 
-`Next: Glance - Image Service <glance.rst>`_
-
-.. NOTE:
-
-   OpenStack clients ???
-   ~~~~~~~~~~~~~~~~~~~~~
-   **TO-DO** Shell we say something about OpenStack clients too?
-   Ref `here: <http://docs.openstack.org/icehouse/install-guide/install/apt/content/ch_clients.html>`_.
+If you did it correctly, you should not be able to run `openstack user
+list` with only the `OS_TOKEN` and `OS_URL` environment variable, but
+should be able to do it setting the variables we saved in the
+``admin.sh`` file.

@@ -581,6 +581,128 @@ Let's also update the ``/etc/hosts`` also on those nodes::
 
 Now you should be able to connect to any node with ssh from your laptop.
 
+Setup port forwarding from bastion to nodes
+-------------------------------------------
+
+First of all, we need to update the security groups of the bastion
+host to allow TCP ports used by openstack. This is a short list of the
+ports used by OpenStack:
+
++-----------+-------------+--------------+
+| service   | ports       | host         |
++===========+=============+==============+
+| keystone  | 5000, 35357 | auth-node    |
++-----------+-------------+--------------+
+| nova      | 8773, 8775  | compute-node |
++-----------+-------------+--------------+
+| vnc proxy | 6080        | compute-node |
++-----------+-------------+--------------+
+| cinder    | 8774        | volume-node  |
++-----------+-------------+--------------+
+| glance    | 9191, 9292  | image-node   |
++-----------+-------------+--------------+
+| neutron   | 9696        | network-node |
++-----------+-------------+--------------+
+
+Cfr. `official documentation <http://docs.openstack.org/liberty/config-reference/content/firewalls-default-ports.html>`_
+
+Let's create a separate security group::
+
+    user@ubuntu:~$ openstack security group create openstack
+    +-------------+--------------------------------------+
+    | Field       | Value                                |
+    +-------------+--------------------------------------+
+    | description | openstack                            |
+    | id          | 1eedbc48-f197-4886-8226-554c7ade4f78 |
+    | name        | openstack                            |
+    | rules       | []                                   |
+    | tenant_id   | 648477bbdd0747bfa07497194f20aac3     |
+    +-------------+--------------------------------------+
+
+and open all the aforementioned ports::
+
+    user@ubuntu:~$ for port in 5000 35357 8773 8774 8775 9191 9292 9696; \
+        do openstack security group rule create --dst-port $port openstack; \
+        done
+
+and then, add this security group to the bastion host. Unfortunately,
+since we already disabled the port security on the private interface,
+and the `openstack` command wants to add it to all the ports, we need
+to use the `nova` command::
+
+    user@ubuntu:~$ nova secgroup-list
+    +--------------------------------------+-----------+------------------------+
+    | Id                                   | Name      | Description            |
+    +--------------------------------------+-----------+------------------------+
+    | 640d2c0a-3e89-404e-9875-1e7bbac1c9f1 | default   | Default security group |
+    | 1eedbc48-f197-4886-8226-554c7ade4f78 | openstack | openstack              |
+    +--------------------------------------+-----------+------------------------+
+    user@ubuntu:~$ nova interface-list bastion
+    +------------+--------------------------------------+--------------------------------------+--------------+-------------------+
+    | Port State | Port ID                              | Net ID                               | IP addresses | MAC Addr          |
+    +------------+--------------------------------------+--------------------------------------+--------------+-------------------+
+    | ACTIVE     | 38d19638-dfdf-4ec8-b147-94ee13fe8477 | 9a4ce8c1-950c-4432-86ef-a8ba4a9d0e28 | 10.0.0.4     | fa:16:3e:5f:77:76 |
+    | ACTIVE     | d1c936fd-ac6b-4d1c-a154-d07d4dce48b8 | dad2ca78-380e-48aa-8454-1218feb47947 | 192.168.1.4  | fa:16:3e:bc:c2:36 |
+    +------------+--------------------------------------+--------------------------------------+--------------+-------------------+
+    user@ubuntu:~$ neutron port-show 38d19638-dfdf-4ec8-b147-94ee13fe8477
+    +-----------------------+---------------------------------------------------------------------------------+
+    | Field                 | Value                                                                           |
+    +-----------------------+---------------------------------------------------------------------------------+
+    | admin_state_up        | True                                                                            |
+    | allowed_address_pairs |                                                                                 |
+    | binding:vnic_type     | normal                                                                          |
+    | device_id             | 8c03b65a-1c2f-46f6-a96b-db37ecd17955                                            |
+    | device_owner          | compute:None                                                                    |
+    | extra_dhcp_opts       |                                                                                 |
+    | fixed_ips             | {"subnet_id": "42a0c86a-4ee4-4599-91a6-4adc720df0f3", "ip_address": "10.0.0.4"} |
+    | id                    | 38d19638-dfdf-4ec8-b147-94ee13fe8477                                            |
+    | mac_address           | fa:16:3e:5f:77:76                                                               |
+    | name                  |                                                                                 |
+    | network_id            | 9a4ce8c1-950c-4432-86ef-a8ba4a9d0e28                                            |
+    | port_security_enabled | True                                                                            |
+    | security_groups       | 640d2c0a-3e89-404e-9875-1e7bbac1c9f1                                            |
+    | status                | ACTIVE                                                                          |
+    | tenant_id             | 648477bbdd0747bfa07497194f20aac3                                                |
+    +-----------------------+---------------------------------------------------------------------------------+
+    user@ubuntu:~$  neutron port-update 38d19638-dfdf-4ec8-b147-94ee13fe8477 --security-group 640d2c0a-3e89-404e-9875-1e7bbac1c9f1 --security-group 1eedbc48-f197-4886-8226-554c7ade4f78
+    Updated port: 38d19638-dfdf-4ec8-b147-94ee13fe8477
+
+.. NOTE: Actually, openstack server add security group works, but
+.. gives you a warning. This is cleaner and shows a few more commands.
+
+Of course, we need to open also the other hosts. It would be better to
+create a security group per group of services, but we are lazy so we
+will associate the `openstack` security group to all service nodes::
+
+    user@ubuntu:~$ for node in {auth,image,volume,compute,network}-node; do openstack server add security group $node openstack; done
+
+Finally, we can setup the DNAT from the bastion host to all the
+internal services.
+
+For keystone (in my case, auth-node is `192.168.1.6`)::
+
+
+    user@ubuntu:~$ iptables -t nat -A PREROUTING -p tcp -m multiport \
+      --dport 5000,35357 -j DNAT \
+      --to-destination 192.168.1.6 
+
+for nova (compute-node, 192.168.1.9)::
+
+    iptables -t nat -A PREROUTING -p tcp -m multiport --dport 8773,8775,6080 -j DNAT --to-destination 192.168.1.9
+
+cinder::
+
+    iptables -t nat -A PREROUTING -p tcp  --dport 8774 -j DNAT --to-destination 192.168.1.8
+
+glance::
+
+    iptables -t nat -A PREROUTING -p tcp -m multiport --dport 9191,9292 -j DNAT --to-destination 192.168.1.7
+
+
+neutron::
+
+    iptables -t nat -A PREROUTING -p tcp --dport 9696 -j DNAT --to-destination 192.168.1.12
+
 
 Install openstack repository and ntp
 ------------------------------------
