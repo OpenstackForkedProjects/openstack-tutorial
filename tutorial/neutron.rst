@@ -14,15 +14,12 @@ First move to the **db-node** and create the database::
     
     MariaDB [(none)]> CREATE DATABASE neutron;
     MariaDB [(none)]> GRANT ALL ON neutron.* TO 'neutron'@'%' IDENTIFIED BY 'openstack';
-    MariaDB [(none)]> GRANT ALL ON neutron.* TO 'neutron'@'localhost' IDENTIFIED BY 'openstack';
     MariaDB [(none)]> FLUSH PRIVILEGES;
     MariaDB [(none)]> exit
 
 Create Neutron user, service and endpoint::
 
-    root@auth-node:~# openstack user create --domain default --password-prompt neutron
-    User Password:
-    Repeat User Password:
+    user@ubuntu:~$ openstack user create --password openstack neutron
     +-----------+----------------------------------+
     | Field     | Value                            |
     +-----------+----------------------------------+
@@ -32,9 +29,9 @@ Create Neutron user, service and endpoint::
     | name      | neutron                          |
     +-----------+----------------------------------+
     
-    root@auth-node:~# openstack role add --project service --user neutron admin
+    user@ubuntu:~$ openstack role add --project service --user neutron admin
       
-    root@auth-node:~#  openstack service create --name neutron --description "OpenStack Networking" network
+    user@ubuntu:~$ openstack service create --name neutron --description "OpenStack Networking" network
     +-------------+----------------------------------+
     | Field       | Value                            |
     +-------------+----------------------------------+
@@ -45,46 +42,46 @@ Create Neutron user, service and endpoint::
     | type        | network                          |
     +-------------+----------------------------------+
 
-    root@auth-node:~# openstack endpoint create --region RegionOne network internal http://controller:9696
-    +--------------+----------------------------------+
-    | Field        | Value                            |
-    +--------------+----------------------------------+
-    | enabled      | True                             |
-    | id           | 45bb5daa918b4eb2984573a17ec5b83f |
-    | interface    | internal                         |
-    | region       | RegionOne                        |
-    | region_id    | RegionOne                        |
-    | service_id   | 16a5565a08364993994ef909c2ee0404 |
-    | service_name | neutron                          |
-    | service_type | network                          |
-    | url          | http://controller:9696           |
-    +--------------+----------------------------------+
-
-    root@auth-node:~# openstack endpoint create --region RegionOne network admin http://network-node.example.org:9696
-    +--------------+--------------------------------------+
-    | Field        | Value                                |
-    +--------------+--------------------------------------+
-    | enabled      | True                                 |
-    | id           | eee0577f96104e33aa28db5f791ebf39     |
-    | interface    | admin                                |
-    | region       | RegionOne                            |
-    | region_id    | RegionOne                            |
-    | service_id   | 16a5565a08364993994ef909c2ee0404     |
-    | service_name | neutron                              |
-    | service_type | network                              |
-    | url          | http://network-node.example.org:9696 |
-    +--------------+--------------------------------------+   
+    user@ubuntu:~$ openstack endpoint create network \
+      --region RegionOne \
+      --publicurl http://<FLOATING_IP_BASTION>:9696 \
+      --internalurl http://network-node:9696 \
+      --adminurl http://<FLOATING_IP_BASTION>:9696
+    +--------------+-----------------------------------+
+    | Field        | Value                             |
+    +--------------+-----------------------------------+
+    | enabled      | True                              |
+    | id           | 45bb5daa918b4eb2984573a17ec5b83f  |
+    | interface    | internal                          |
+    | region       | RegionOne                         |
+    | region_id    | RegionOne                         |
+    | service_id   | 16a5565a08364993994ef909c2ee0404  |
+    | service_name | neutron                           |
+    | service_type | network                           |
+    | url          | http://<FLOATING_IP_BASTION>:9696 |
+    +--------------+-----------------------------------+
 
 ``network-node`` configuration
 ------------------------------
+
+and then ``eth1.cfg``::
+
+    root@network-node:~# cat > /etc/network/interfaces.d/eth1.cfg <<EOF
+    > auto eth1
+    > iface eth1 inet static
+    >   address 10.0.0.5
+    >   netmask 255.255.255.0
+    >   gateway 10.0.0.1
+    > EOF
 
 Neutron is composed of three different kind of services:
 
 * neutron server (API)
 * neutron plugin (to deal with different network types)
-* neutron agent (some runs on the compute nodes, to provide integration between
-  the hypervisor and networks set up by neutron. Others runs on a
-  network node, to provide dhcp and routing capabilities)
+* neutron agent (some runs on the compute nodes, to provide
+  integration between the hypervisor and networks set up by
+  neutron. Others runs on a network node, to provide dhcp and routing
+  capabilities)
 
 We are going to install the neutron server and main plugins/agents on
 the **network-node**, and the needed plugins on the compute
@@ -129,14 +126,11 @@ RabbitMQ, keystone and MySQL information::
     rabbit_password = openstack 
 
     [keystone_authtoken]
-    auth_uri = http://auth-node.example.org:5000
-    auth_url = http://auth-node.example.org:35357
-    auth_plugin = password
-    project_domain_id = default
-    user_domain_id = default
-    project_name = service
-    username = neutron
-    password = openstack
+    auth_uri = http://<FLOATING_IP_OF_BASTION>:5000
+    identity_uri = http://<FLOATING_IP_OF_BASTION>:35357
+    admin_tenant_name = service
+    admin_user = neutron
+    admin_password = openstack
 
     [database]
     connection = mysql://neutron:openstack@db-node/neutron
@@ -161,29 +155,12 @@ communicate any change in the network topology. Again in the
     # ...
     notify_nova_on_port_status_changes = True
     notify_nova_on_port_data_changes = True
-    nova_url = http://compute-node.example.org:8774/v2
+    nova_url = http://compute-node:8774/v2
     nova_admin_username = nova
-    nova_admin_tenant_id = 705ab94a4803444bba42eb2f22de8679 
+    nova_admin_tenant_name = service 
     nova_admin_password = openstack
-    nova_admin_auth_url = http://auth-node.example.org:35357/v2.0
+    nova_admin_auth_url = http://auth-node:35357
 
-**NOTE:** put the correct value for the ``nova_admin_tenant_id``
-option: it has to be the tenant id of the `service` project. You can
-recover it from a node with access to keystone with::
-
-    root@auth-node:~# openstack project show service
-    +-------------+----------------------------------+
-    | Field       | Value                            |
-    +-------------+----------------------------------+
-    | description | Service Project                  |
-    | domain_id   | default                          |
-    | enabled     | True                             |
-    | id          | 705ab94a4803444bba42eb2f22de8679 |
-    | is_domain   | False                            |
-    | name        | service                          |
-    | parent_id   | None                             |
-    +-------------+----------------------------------+
- 
 
 The L3-agent (responsible for routing, using iptables) reads the
 ``/etc/neutron/l3_agent.ini`` file instead. Ensure the following
@@ -194,6 +171,8 @@ options are set::
     interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver    
     use_namespaces = True
     external_network_bridge = br-eth1
+
+.. by default external_network_bridge is `br-ex`
 
 The DHCP agent (responsible for giving private IP addresses to the VMs
 using DHCP protocol) reads file
@@ -222,31 +201,20 @@ create a shared secret that will be shared between the `nova-api`
 service and the `metadata-agent`::
 
     [DEFAULT]
-    auth_url = http://auth-node.example.org:5000/v2.0
+    auth_url = http://auth-node:5000
     auth_region = RegionOne
     admin_tenant_name = service
     admin_user = neutron
-    admin_password = openstack 
+    admin_password = openstack
+    endpoint_type = internalURL
     # IP of the nova-api/nova-metadata-api service
     nova_metadata_ip = <IP_OF_THE_COMPUTE_NODE> 
     metadata_proxy_shared_secret = d1a6195d-5912-4ef9-b01f-426603d56bd2
 
-`nova-api` service
-------------------
+The `metadata_proxy_shared_secret` must be the same string you put
+in ``nova.conf``, option ``[neutron/metadata_proxy_shared_secret.
 
-On the `nova-api` node, you must update the ``/etc/nova/nova.conf``,
-adding the shared secret and telling `nova-api` that neutron is used
-as a proxy for metadata api::
 
-    [DEFAULT]
-    neutron_metadata_proxy_shared_secret = d1a6195d-5912-4ef9-b01f-426603d56bd2
-    service_neutron_metadata_proxy = true
-
-Remember to restart the service::
-
-    root@compute-node:~# service nova-api restart
-    nova-api stop/waiting
-    nova-api start/running, process 7830
 
 ML2 plugin configuration
 ------------------------
@@ -263,7 +231,6 @@ options are set::
     type_drivers = gre,flat,vxlan
     tenant_network_types = gre
     mechanism_drivers = openvswitch
-    extension_drivers = port_security
 
     [ml2_type_flat]
     #...
@@ -278,6 +245,10 @@ options are set::
     enable_security_group = True
     enable_ipset = True
 
+.. ANTONIO: Disabled port_security extension, this is only useful in
+.. our outer cloud.
+..     extension_drivers = port_security
+
 In the ``/etc/neutron/plugins/ml2/openvswitch_agent.ini`` file set the 
 OpenVSwitch options::
 
@@ -291,8 +262,9 @@ Database bootstrap
 
 Initialize the database with::
 
-    root@network-node:~# /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf \
-    >   --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
+    root@network-node:~# neutron-db-manage \
+      --config-file /etc/neutron/neutron.conf \
+      --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade liberty
 
  
 OpenVSwitch
@@ -314,57 +286,74 @@ If NOT, create one with the following command::
 
     root@network-node:~# ovs-vsctl add-br br-int
 
-Then, we need a bridge for external traffic::
+The external bridge, however, is not automatically
+configured. Moreover, neither the second interface has been ever
+configured, as by default the standard Ubuntu image does not
+automatically configure the second interface, so we have to do it
+manually.
 
-    root@network-node:~# ovs-vsctl add-br br-eth1
+Also, if we just use dhcp to configure the second interface, we will
+have two gateways defined, although the gateway of the network node
+should be 10.0.0.1 (the neutron router of the **outer** cloud).
 
-Now it gets a bit tricky for us. Ideally, you would have two network
-interfaces, one used to access the network node using the public IP,
-and the other connected to all the public networks you want to make
-available for your VMs.
+Let's fix this the proper way. First, we modify the configuration of
+the eth0 interface, and we assign the IP statically. We will use the
+same IPs assigned by Neutron, that are visible with the command::
 
-However, because of the limitations in OpenStack (VMs can only have
-one interface per network) and the filters OpenStack put in place to
-prevent spoofing and other nasty hacks, we have to:
+    user@ubuntu:~$ nova interface-list network-node
+    +------------+--------------------------------------+--------------------------------------+--------------+-------------------+
+    | Port State | Port ID                              | Net ID                               | IP addresses | MAC Addr          |
+    +------------+--------------------------------------+--------------------------------------+--------------+-------------------+
+    | ACTIVE     | 7e79e74c-8d6c-4e22-bfc0-a793f110709a | 9a4ce8c1-950c-4432-86ef-a8ba4a9d0e28 | 10.0.0.5     | fa:16:3e:52:98:3c |
+    | ACTIVE     | a7d2c2f8-129b-4f4f-949b-ad137bb1ca23 | dad2ca78-380e-48aa-8454-1218feb47947 | 192.168.1.12 | fa:16:3e:d8:da:f1 |
+    +------------+--------------------------------------+--------------------------------------+--------------+-------------------+
+    
+To update the configuration of the eth0 interface we run::
 
-* attach the `eth1` network interface to `br-eth1`
-* give the ip of `eth1` to `br-eth1`
-* swap the mac addresses of `br-eth1` and `eth1`
+    root@network-node:~# cat > /etc/network/interfaces.d/eth0.cfg  <<EOF
+    > auto eth0
+    > iface eth0 inet static
+    >   address 192.168.1.12
+    >   up ip route add 169.254.169.254/32 via 192.168.1.3 dev eth0
+    >   netmask 255.255.255.0
+    > EOF
 
-In order to do that you will need to connect to the VM from one of the
-internal nodes, since otherwise you will kick yourself out::
+We also need to set a route for the metadata server, pointing to the
+address of the dhcp agent, to speedup the boot process.
 
-    root@compute-node:~# ssh network-node
-    Welcome to Ubuntu 14.04.2 LTS (GNU/Linux 3.13.0-32-generic x86_64)
+Now we update the create a new file for `br-eth1`::
 
-     * Documentation:  https://help.ubuntu.com/
+    root@network-node:~# cat > /etc/network/interfaces.d/br-eth1.cfg  <<EOF
+    > allow-ovs br-eth1
+    > iface br-eth1 inet manual
+    >   ovs_type OVSBridge
+    >   post-up ovs-vsctl --may-exist add-port br-eth1 eth1
+    >   post-up ip link set dev eth1 up
+    >   address 10.0.0.5
+    >   netmask 255.255.255.0
+    >   gateway 10.0.0.1
+    >   dns-nameservers 130.60.128.3 130.60.64.51
+    > EOF
 
-    root@network-node:~# ip a show dev eth1
-    3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast master ovs-system state UP group default qlen 1000
-    link/ether fa:16:3e:ae:63:d4 brd ff:ff:ff:ff:ff:ff
-    inet 10.0.0.10/24 brd 10.0.0.255 scope global eth1
-       valid_lft forever preferred_lft forever
-    inet6 fe80::f816:3eff:feae:63d4/64 scope link 
-       valid_lft forever preferred_lft forever
+Finally, we need to remove the port security also on the interface
+corresponding to eth1, because when we attach eth1 to br-eth1 the MAC
+address of the interface will change (the MAC of br-eth1 will be used
+instead), and we need to force Neutron to remove any spoofing
+protection it usually puts in place.
 
-    root@network-node:~# ip link show dev br-eth1
-    7: br-eth1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default 
-    link/ether 5e:25:0c:60:83:4d brd ff:ff:ff:ff:ff:ff
+We know the port ID corresponding to eth1 from the previous ``nova
+interface-list`` command, so::
 
-    root@network-node:~# ovs-vsctl add-port br-eth1 eth1
-    root@network-node:~# ifconfig br-eth1 <IP_OF_THE_NETWORK_NODE_ON_THE_PUBLIC>/24
-    root@network-node:~# ifconfig eth1 0.0.0.0
-    root@network-node:~# ovs-vsctl set bridge br-eth1 other-config:hwaddr=<MACADDRESS_OF_ETH1>
-    root@network-node:~# ifconfig eth1 hw ether <MACADDRESS_OF_BR-ETH1>
-    root@network-node:~# route add default gw 10.0.0.1
+    user@ubuntu:~$ neutron port-update \
+      --port-security-enabled=False \
+      --no-security-groups \
+      7e79e74c-8d6c-4e22-bfc0-a793f110709a
 
-**IMPORTANT**: if you reboot this machine now, you will not be able to
-connect to it again. While adding the `eth1` interface to `br-eth1`
-bridge is *preserved* after a reboot, setting the IP and the mac
-address is not. You should update ``/etc/network/interfaces`` file to
-preserve these settings, but this is out of the scope if this tutorial.
 
-After this, the openvswitch configuration should look like::
+At this point, a reboot of the server will be enough to configure both
+interfaces correctly.
+
+After the reboot, the openvswitch configuration should look like::
 
     root@network-node:~# ovs-vsctl show
     1a05c398-3024-493f-b3c4-a01912688ba4
@@ -451,30 +440,6 @@ After this, the openvswitch configuration should look like::
    interfaces. Let's see what happen)
 
 
-Almost done!
-------------
-
-Restart services::
-
-    root@network-node:~# service neutron-server restart
-    root@network-node:~# service neutron-dhcp-agent restart
-    root@network-node:~# service neutron-l3-agent restart
-    root@network-node:~# service neutron-metadata-agent restart
-    root@network-node:~# service neutron-plugin-openvswitch-agent restart
-
-Testing nova
-------------
-
-As usual, you can set the environment variables to use the ``neutron`` command line
-without having to specify the credentials via command line options::
-
-    root@network-node:~# export OS_PROJECT_DOMAIN_ID=default
-    root@network-node:~# export OS_USER_DOMAIN_ID=default
-    root@network-node:~# export OS_PROJECT_NAME=admin
-    root@network-node:~# export OS_USERNAME=admin
-    root@network-node:~# export OS_PASSWORD=openstack
-    root@network-node:~# export OS_AUTH_URL=http://auth-node.example.org:35357/v3
-    root@network-node:~# export OS_IDENTITY_API_VERSION=3
 
 Default networks
 ----------------

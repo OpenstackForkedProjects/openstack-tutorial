@@ -2,11 +2,6 @@
 Cinder - Block storage service
 ------------------------------
 
-As we did for the image node before staring it is good to quickly
-check if the remote ssh execution of the commands done in the `all
-nodes installation <basic_services.rst#all-nodes-installation>`_ section worked without problems. You can again
-verify it by checking the ntp installation.
-
 **Cinder** is the name of the OpenStack block storage service. It
 allows manipulation of volumes, volume types (similar to compute
 flavors) and volume snapshots.
@@ -17,19 +12,21 @@ servers can mount the same filesystem. Instead, it's more like a SAN,
 where volumes are created, and then accessed by one single server at a
 time, and used as a raw block device.
 
-It is important to say that cinder volumes are usually *persistent*,
-so they are never deleted automatically, and must be deleted manually
-via web, command line or API.
+It is important to say that cinder volumes are usually [#usually]_
+*persistent*, so they are never deleted automatically, and must be
+deleted manually via web, command line or API.
 
 Volumes created by cinder are served via iSCSI to the compute node,
 which will provide them to the VM as regular sata disk. These volumes
 can be stored on different backends: LVM (the default one), Ceph,
-GlusterFS, NFS or various appliances from IBM, NetApp etc.
+GlusterFS, NFS or various appliances from IBM, NetApp etc. [#backends]_
 
-Possible usecase cinder volume are:
-* as a backend for a database
-* as a device to be exported via NFS/Lustre/GlusterFS to other VMs
-* as a mean for backing up important data created from within a VM
+It is also possible to start a VM from volume. In this way, you can
+have a VM with a root disk of size different from the one specified in
+the flavor (that could be smaller than needed).
+
+Usually, however, volumes are created for storing important data (for
+instance: /var/lib/mysql in a mysql server).
 
 Cinder is actually composed of different services:
 
@@ -57,6 +54,11 @@ Cinder is actually composed of different services:
     The cinder-volume service is responsible for managing Block
     Storage devices, specifically the back-end devices themselves.
 
+**cinder-backup**
+
+    This optional service is responsible for backing up the volume on
+    a different backedn (swift, tivoli, ceph etc)
+    
 In our setup, we will run all the cinder services on the same machine,
 although you can, in principle, spread them over multiple servers.
 
@@ -71,22 +73,19 @@ On the **db-node** create the database and the MySQL user::
     root@db-node:~# mysql -u root -p
     MariaDB [(none)]> CREATE DATABASE cinder;
     MariaDB [(none)]> GRANT ALL ON cinder.* TO 'cinder'@'%' IDENTIFIED BY 'openstack';
-    MariaDB [(none)]> GRANT ALL ON cinder.* TO 'cinder'@'localhost' IDENTIFIED BY 'openstack';
     MariaDB [(none)]> FLUSH PRIVILEGES;
     MariaDB [(none)]> exit
 
-On the **auth-node** create a keystone user, a "volume" service and
-its endpoint, like we did for the *glance* service. The following
-commands assume you already set the environment variables needed to
-run keystone without specifying login, password and endpoint all the
+From your laptop create a keystone user, a "volume" service and its
+endpoint, like we did for the *glance* service. The following commands
+assume you already set the environment variables needed to run
+keystone without specifying login, password and endpoint all the
 times.
 
 First of all we need to create a keystone user for the cinder service, 
 associated with the **service** tenant::
 
-    root@auth-node:~# openstack user create --domain default --password-prompt cinder
-    User Password:
-    Repeat User Password:
+    user@ubuntu:~$ openstack user create  --password openstack cinder
     +-----------+----------------------------------+
     | Field     | Value                            |
     +-----------+----------------------------------+
@@ -98,11 +97,11 @@ associated with the **service** tenant::
 
 Then we need to give admin permissions to it::
 
-    root@auth-node:~# openstack role add --project service --user cinder admin
+    user@ubuntu:~$ openstack role add --project service --user cinder admin
 
 We need then to create two **volume** service::
 
-    root@auth-node:~# openstack service create --name cinder --description "OpenStack Block Storage" volume
+    user@ubuntu:~$ openstack service create --name cinder --description "OpenStack Block Storage" volume
     +-------------+----------------------------------+
     | Field       | Value                            |
     +-------------+----------------------------------+
@@ -112,7 +111,7 @@ We need then to create two **volume** service::
     | name        | cinder                           |
     | type        | volume                           |
     +-------------+----------------------------------+
-    root@auth-node:~# openstack service create --name cinderv2 --description "OpenStack Block Storage" volumev2
+    user@ubuntu:~$ openstack service create --name cinderv2 --description "OpenStack Block Storage" volumev2
     +-------------+----------------------------------+
     | Field       | Value                            |
     +-------------+----------------------------------+
@@ -127,123 +126,61 @@ We need then to create two **volume** service::
 and the related endpoints, using the services' id we just got::
         
 
-   root@auth-node:~# openstack endpoint create --region RegionOne volume public http://volume-node.example.org:8776/v1/%\(tenant_id\)s
-   +--------------+------------------------------------------------------+
-   | Field        | Value                                                |
-   +--------------+------------------------------------------------------+
-   | enabled      | True                                                 |
-   | id           | 1711ffdd1c364587b3455e62420b66a8                     |
-   | interface    | public                                               |
-   | region       | RegionOne                                            |
-   | region_id    | RegionOne                                            |
-   | service_id   | 85d16b9e37f441fbb540c30e253e4c69                     |
-   | service_name | cinder                                               |
-   | service_type | volume                                               |
-   | url          | http://volume-node.example.org:8776/v1/%(tenant_id)s |
-   +--------------+------------------------------------------------------+
-   root@auth-node:~# openstack endpoint create --region RegionOne volume internal http://volume-node.example.org:8776/v1/%\(tenant_id\)s
-   +--------------+------------------------------------------------------+
-   | Field        | Value                                                |
-   +--------------+------------------------------------------------------+
-   | enabled      | True                                                 |
-   | id           | fdc1b296eb264286a962ad0b8129c83e                     |
-   | interface    | internal                                             |
-   | region       | RegionOne                                            |
-   | region_id    | RegionOne                                            |
-   | service_id   | 85d16b9e37f441fbb540c30e253e4c69                     |
-   | service_name | cinder                                               |
-   | service_type | volume                                               |
-   | url          | http://volume-node.example.org:8776/v1/%(tenant_id)s |
-   +--------------+------------------------------------------------------+
-   root@auth-node:~# openstack endpoint create --region RegionOne volume admin http://volume-node.example.org:8776/v1/%\(tenant_id\)s
-   +--------------+------------------------------------------------------+
-   | Field        | Value                                                |
-   +--------------+------------------------------------------------------+
-   | enabled      | True                                                 |
-   | id           | 1fa52d48fc7c442d955c01d510cdb6c5                     |
-   | interface    | admin                                                |
-   | region       | RegionOne                                            |
-   | region_id    | RegionOne                                            |
-   | service_id   | 85d16b9e37f441fbb540c30e253e4c69                     |
-   | service_name | cinder                                               |
-   | service_type | volume                                               |
-   | url          | http://volume-node.example.org:8776/v1/%(tenant_id)s |
-   +--------------+------------------------------------------------------+
+    user@ubuntu:~$ openstack endpoint create --region RegionOne \
+      volume --publicurl 'http://130.60.24.120:8776/v1/%(tenant_id)s' \
+      --internalurl 'http://volume-node::8776/v1/%(tenant_id)s' \
+      --adminurl 'http://130.60.24.120::8776/v1/%(tenant_id)s'
+    +--------------+---------------------------------------------+
+    | Field        | Value                                       |
+    +--------------+---------------------------------------------+
+    | adminurl     | http://130.60.24.120::8776/v1/%(tenant_id)s |
+    | id           | 414e799f4f7140b096a9727134c3e832            |
+    | internalurl  | http://volume-node::8776/v1/%(tenant_id)s   |
+    | publicurl    | http://130.60.24.120:8776/v1/%(tenant_id)s  |
+    | region       | RegionOne                                   |
+    | service_id   | 4b2056d4722c4fcb89a349845e31cecb            |
+    | service_name | cinder                                      |
+    | service_type | volume                                      |
+    +--------------+---------------------------------------------+
 
-   root@auth-node:~# openstack endpoint create --region RegionOne volumev2 public http://volume-node.example.org:8776/v2/%\(tenant_id\)s
-   +--------------+------------------------------------------------------+
-   | Field        | Value                                                |
-   +--------------+------------------------------------------------------+
-   | enabled      | True                                                 |
-   | id           | 22e32fcc0b5a4b7d8516fccbb10c6156                     |
-   | interface    | public                                               |
-   | region       | RegionOne                                            |
-   | region_id    | RegionOne                                            |
-   | service_id   | 6ca094ab5b7948099deeef9f62e4ca4a                     |
-   | service_name | cinderv2                                             |
-   | service_type | volumev2                                             |
-   | url          | http://volume-node.example.org:8776/v2/%(tenant_id)s |
-   +--------------+------------------------------------------------------+
-   root@auth-node:~# openstack endpoint create --region RegionOne volumev2 internal http://volume-node.example.org:8776/v2/%\(tenant_id\)s
-   +--------------+------------------------------------------------------+
-   | Field        | Value                                                |
-   +--------------+------------------------------------------------------+
-   | enabled      | True                                                 |
-   | id           | 44098829c0ba40faae67844f31c185d3                     |
-   | interface    | internal                                             |
-   | region       | RegionOne                                            |
-   | region_id    | RegionOne                                            |
-   | service_id   | 6ca094ab5b7948099deeef9f62e4ca4a                     |
-   | service_name | cinderv2                                             |
-   | service_type | volumev2                                             |
-   | url          | http://volume-node.example.org:8776/v2/%(tenant_id)s |
-   +--------------+------------------------------------------------------+
-   root@auth-node:~# openstack endpoint create --region RegionOne volumev2 admin http://volume-node.example.org:8776/v2/%\(tenant_id\)s
-   +--------------+------------------------------------------------------+
-   | Field        | Value                                                |
-   +--------------+------------------------------------------------------+
-   | enabled      | True                                                 |
-   | id           | 6035ea09f6ef426cb84543b0ed439b91                     |
-   | interface    | admin                                                |
-   | region       | RegionOne                                            |
-   | region_id    | RegionOne                                            |
-   | service_id   | 6ca094ab5b7948099deeef9f62e4ca4a                     |
-   | service_name | cinderv2                                             |
-   | service_type | volumev2                                             |
-   | url          | http://volume-node.example.org:8776/v2/%(tenant_id)s |
-   +--------------+------------------------------------------------------+
+    user@ubuntu:~$ openstack endpoint create --region RegionOne \
+      volumev2 --publicurl 'http://130.60.24.120:8776/v2/%(tenant_id)s' \
+      --internalurl 'http://volume-node::8776/v2/%(tenant_id)s' \
+      --adminurl 'http://130.60.24.120::8776/v2/%(tenant_id)s'
+    +--------------+---------------------------------------------+
+    | Field        | Value                                       |
+    +--------------+---------------------------------------------+
+    | adminurl     | http://130.60.24.120::8776/v2/%(tenant_id)s |
+    | id           | cc6ba0f5a10a494c806e07db5f5c7dc8            |
+    | internalurl  | http://volume-node::8776/v2/%(tenant_id)s   |
+    | publicurl    | http://130.60.24.120:8776/v2/%(tenant_id)s  |
+    | region       | RegionOne                                   |
+    | service_id   | 7268ee3f9b674bdca6d0b3c92394842e            |
+    | service_name | cinderv2                                    |
+    | service_type | volumev2                                    |
+    +--------------+---------------------------------------------+
 
-
-Please note that the URLs need to be quoted using the (') character
-(single quote) otherwise the shell will interpret the dollar sign ($)
-present in the url.
 
 We should now have 12 endpoints on keystone::
-   
-   root@auth-node:~# openstack endpoint list 
-   +----------------------------------+-----------+--------------+--------------+---------+-----------+------------------------------------------------------+
-   | ID                               | Region    | Service Name | Service Type | Enabled | Interface | URL                                                  |
-   +----------------------------------+-----------+--------------+--------------+---------+-----------+------------------------------------------------------+
-   | 0afed953c2fd40b69d7cd6f55e88dd95 | RegionOne | keystone     | identity     | True    | admin     | http://auth-node.example.org:35357/v2.0              |
-   | 0bc0ce6e1c484b349c5c29884c021e4e | RegionOne | glance       | image        | True    | internal  | http://image-node.example.org:9292                   |
-   | 1711ffdd1c364587b3455e62420b66a8 | RegionOne | cinder       | volume       | True    | public    | http://volume-node.example.org:8776/v1/%(tenant_id)s |
-   | 1fa52d48fc7c442d955c01d510cdb6c5 | RegionOne | cinder       | volume       | True    | admin     | http://volume-node.example.org:8776/v1/%(tenant_id)s |
-   | 22e32fcc0b5a4b7d8516fccbb10c6156 | RegionOne | cinderv2     | volumev2     | True    | public    | http://volume-node.example.org:8776/v2/%(tenant_id)s |
-   | 44098829c0ba40faae67844f31c185d3 | RegionOne | cinderv2     | volumev2     | True    | internal  | http://volume-node.example.org:8776/v2/%(tenant_id)s |
-   | 4e2d0570fd434ddbab7b254c1c3b4524 | RegionOne | keystone     | identity     | True    | public    | http://auth-node.example.org:5000/v2.0               |
-   | 6035ea09f6ef426cb84543b0ed439b91 | RegionOne | cinderv2     | volumev2     | True    | admin     | http://volume-node.example.org:8776/v2/%(tenant_id)s |
-   | 7d02f87f78a64a0591e5ea2378dc9b09 | RegionOne | glance       | image        | True    | public    | http://image-node.example.org:9292                   |
-   | c1350cde50af4482b2ab3b79588ce457 | RegionOne | glance       | image        | True    | admin     | http://image-node.example.org:9292                   |
-   | dd7fbe5f6e064d5d9e2d6b3ec84c445e | RegionOne | keystone     | identity     | True    | internal  | http://auth-node.example.org:5000/v2.0               |
-   | fdc1b296eb264286a962ad0b8129c83e | RegionOne | cinder       | volume       | True    | internal  | http://volume-node.example.org:8776/v1/%(tenant_id)s |
-   +----------------------------------+-----------+--------------+--------------+---------+-----------+------------------------------------------------------+
-   
+
+   user@ubuntu:~$ openstack endpoint list --long
+   +----------------------------------+-----------+--------------+--------------+--------------------------------------------+---------------------------------------------+-------------------------------------------+
+   | ID                               | Region    | Service Name | Service Type | PublicURL                                  | AdminURL                                    | InternalURL                               |
+   +----------------------------------+-----------+--------------+--------------+--------------------------------------------+---------------------------------------------+-------------------------------------------+
+   | cc6ba0f5a10a494c806e07db5f5c7dc8 | RegionOne | cinderv2     | volumev2     | http://130.60.24.120:8776/v2/%(tenant_id)s | http://130.60.24.120::8776/v2/%(tenant_id)s | http://volume-node::8776/v2/%(tenant_id)s |
+   | 4adfe710a8f341b5ac6fe9a209238882 | RegionOne | keystone     | identity     | http://130.60.24.120:5000/v2.0             | http://130.60.24.120:35357/v2.0             | http://auth-node:5000/v2.0                |
+   | 414e799f4f7140b096a9727134c3e832 | RegionOne | cinder       | volume       | http://130.60.24.120:8776/v1/%(tenant_id)s | http://130.60.24.120::8776/v1/%(tenant_id)s | http://volume-node::8776/v1/%(tenant_id)s |
+   | ef0f5d15de354874b23d1b2f90ad4838 | RegionOne | glance       | image        | http://130.60.24.120:9292                  | http://130.60.24.120:9292                   | http://image-node:9292                    |
+   +----------------------------------+-----------+--------------+--------------+--------------------------------------------+---------------------------------------------+-------------------------------------------+
+
+
 Add a volume to volume-node instance
 ------------------------------------
 
-You can do this via web interface::
+You can do this via web interface, or from the command line (but be
+sure you are using the openstack credential of the **outer** cloud :))::
 
-    user@ubuntu:~$ nova volume-create --display-name cinder 100
+    user@ubuntu:~$ cinder volume-create --display-name cinder 100
     +---------------------+--------------------------------------+
     | Property            | Value                                |
     +---------------------+--------------------------------------+
@@ -273,24 +210,17 @@ You can do this via web interface::
     | volumeId | e539ddc6-f31f-406a-b534-6fc2af1c231a |
     +----------+--------------------------------------+
 
-basic configuration
--------------------
-
 Let's now go back to the  **volume-node** and install the cinder
 packages::
 
-    root@volume-node:~# cinder-api cinder-scheduler cinder-volume python-mysqldb  python-cinderclient lvm2 
+    root@volume-node:~# apt-get install cinder-api cinder-scheduler cinder-volume python-mysqldb  lvm2 
 
 We will configure cinder in order to create volumes using LVM, but in
 order to do that we have to provide a volume group called
 ``cinder-volume`` (you can use a different name, but you have to
 update the cinder configuration file).
 
-At this point, you should create a volume in
-https://cscs2015.s3it.uzh.ch and attach it to the **volume-node**
-machine...
-
-The **volume-node** machine has one more disk (``/dev/vdb``) which
+The **volume-node** machine has now one more disk (``/dev/vdb``) which
 we will use for LVM. You can either partition this disk and use those
 partitions to create the volume group, or use the whole disk. In our
 setup, to keep things simple, we will use the whole disk, so we are
@@ -353,16 +283,19 @@ cinder configuration
        signing_dir = /var/lib/cinder
 
 Now let's configure Cinder. The main file is
-``/etc/cinder/cinder.conf``::
+``/etc/cinder/cinder.conf``. By default it's pretty empty, so ensure
+the following options are defined::
 
     [DEFAULT]
     [...]
     rpc_backend = rabbit
     auth_strategy = keystone
+    
+    # my_ip is especially important for multihomed hosts
     my_ip = <IP_OF_THE_VOLUME_NODE> 
-    verbose=True 
+    verbose = True 
     enabled_backends = lvm
-    glance_host=volume-node.example.org
+    glance_host = image-node
     
     [oslo_messaging_rabbit]
     rabbit_host = db-node
@@ -374,13 +307,10 @@ Now let's configure Cinder. The main file is
 
     [keystone_authtoken]
     auth_uri = http://auth-node.example.org:5000
-    auth_url = http://auth-node.example.org:35357
-    auth_plugin = password
-    project_domain_id = default
-    user_domain_id = default
-    project_name = service
-    username = cinder
-    password = openstack
+    identity_uri = http://130.60.24.120:35357
+    admin_tenant_name = service
+    admin_user = cinder
+    admin_password = openstack
 
     [oslo_concurrency]
     lock_path = /var/lib/cinder/tm
@@ -421,7 +351,7 @@ Now let's configure Cinder. The main file is
 
 Populate the cinder database::
 
-    root@volume-node:~# /bin/sh -c "cinder-manage db sync" cinder 
+    root@volume-node:~# cinder-manage db sync
 
     2014-08-21 14:19:13.676 3576 INFO migrate.versioning.api [-] 0 -> 1... 
     ....
@@ -439,6 +369,7 @@ Restart cinder services::
 
     root@volume-node:~# for serv in cinder-{api,volume,scheduler}; do service $serv restart; done
     root@volume-node:~# service tgt restart
+
 
 Testing cinder
 --------------
@@ -571,7 +502,8 @@ instead of the volume `id` if this is uniqe)::
 
     root@volume-node:~# cinder delete d8047e68-ee9b-4ab5-a152-70b755ab3844 
 
-Deleting the volume can take some time::
+Deleting the volume can take some time. You will notice why if you
+check the process list on the volume node...::
 
     Request to delete volume d8047e68-ee9b-4ab5-a152-70b755ab3844 has been accepted.
     root@volume-node:~# cinder list
@@ -581,10 +513,14 @@ Deleting the volume can take some time::
     | d8047e68-ee9b-4ab5-a152-70b755ab3844 | deleting |        -         | test |  1   |      -      |  false   |    False    |             |
     +--------------------------------------+----------+------------------+------+------+-------------+----------+-------------+-------------+
 
+.. dd is used to zero the volume before deleting. Useful options:
+..
+.. volume_clear=none|shred|zero
+.. volume_clear_size=100
+
 
 After a while, the volume is deleted, and LV is deleted::
 
-    root@volume-node:~# cinder list
     root@volume-node:~# cinder list 
     +----+--------+------------------+------+------+-------------+----------+-------------+-------------+
     | ID | Status | Migration Status | Name | Size | Volume Type | Bootable | Multiattach | Attached to |
@@ -596,8 +532,6 @@ After a while, the volume is deleted, and LV is deleted::
       root   golden-vg -wi-ao--- 7.76g                                           
       swap_1 golden-vg -wi-ao--- 2.00g 
 
-`Next: nova-api - Compute service <nova_api.rst>`_
-
 ..
    **AGAIN MOVE TO THE TESTING SECTION, AS HERE IS NOT RELEVANT**::
        
@@ -606,3 +540,12 @@ After a while, the volume is deleted, and LV is deleted::
        root@volume-node:~# lvdisplay 
 
 
+.. [#usually] When you create a volume it is always persistent. When
+   you boot your VM from volume, this can be automatically deleted
+   when the instance is terminated.
+
+.. [#backends] Actually, this really depends on the backend used. For
+   instance, when using CEPH the volume is not exported via iSCSI but
+   automatically mounted by the compute node. When using backends that
+   interact with certain SAN, the iSCSI volume is exported directly by
+   the SAN and not by cinder-volume.

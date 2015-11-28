@@ -593,11 +593,12 @@ ports used by OpenStack:
 +===========+=============+==============+
 | keystone  | 5000, 35357 | auth-node    |
 +-----------+-------------+--------------+
-| nova      | 8773, 8775  | compute-node |
+| nova      | 8773, 8774, | compute-node |
+|           | 8775        |              |
 +-----------+-------------+--------------+
 | vnc proxy | 6080        | compute-node |
 +-----------+-------------+--------------+
-| cinder    | 8774        | volume-node  |
+| cinder    | 8776        | volume-node  |
 +-----------+-------------+--------------+
 | glance    | 9191, 9292  | image-node   |
 +-----------+-------------+--------------+
@@ -621,7 +622,7 @@ Let's create a separate security group::
 
 and open all the aforementioned ports::
 
-    user@ubuntu:~$ for port in 5000 35357 8773 8774 8775 9191 9292 9696; \
+    user@ubuntu:~$ for port in 80 5000 35357 8773 8774 8775 8776 9191 9292 9696; \
         do openstack security group rule create --dst-port $port openstack; \
         done
 
@@ -688,11 +689,11 @@ For keystone (in my case, auth-node is `192.168.1.6`)::
 
 for nova (compute-node, 192.168.1.9)::
 
-    iptables -t nat -A PREROUTING -p tcp -m multiport --dport 8773,8775,6080 -j DNAT --to-destination 192.168.1.9
+    iptables -t nat -A PREROUTING -p tcp -m multiport --dport 8773,8774,8775,6080,80 -j DNAT --to-destination 192.168.1.9
 
 cinder::
 
-    iptables -t nat -A PREROUTING -p tcp  --dport 8774 -j DNAT --to-destination 192.168.1.8
+    iptables -t nat -A PREROUTING -p tcp  --dport 8776 -j DNAT --to-destination 192.168.1.8
 
 glance::
 

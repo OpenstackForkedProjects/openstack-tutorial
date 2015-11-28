@@ -2,20 +2,6 @@
 Compute service - nova
 ----------------------
 
-As we did for the glance node before staring it is good to quickly
-check if the remote ssh execution of the commands done in the `all
-nodes installation <basic_services.rst#all-nodes-installation>`_
-section worked without problems. You can again verify it by checking
-the ntp installation.
-
-Nova is composed to a variety of services
-
-Now that he have installed a lot of infrastructure, it is time to actually get the 
-compute part of our cloud up and running - otherwise, what good would it be?
-
-In this section we are going to install and configure
-the OpenStack nova services. 
-
 db and keystone configuration
 -----------------------------
 
@@ -25,22 +11,21 @@ First move to the **db-node** and create the database::
     
     MariaDB [(none)]> CREATE DATABASE nova;
     MariaDB [(none)]> GRANT ALL ON nova.* TO 'nova'@'%' IDENTIFIED BY 'openstack';
-    MariaDB [(none)]> GRANT ALL ON glance.* TO 'glance'@'%' IDENTIFIED BY 'openstack';
     MariaDB [(none)]> FLUSH PRIVILEGES; 
     MariaDB [(none)]> exit
 
 
-As we did before, on the **auth-node** we have to create a pair of
-user and password for nova, and the relative service and edpoints
-as we did for the other services.
+As we did before, we have to create a pair of user and password for
+nova, and the relative service and edpoints as we did for the other
+services.
 
 ..  
   but in this case we need to create **two**
   different services and endpoints, since OpenStack also has a
   compatibility layer to Amazon EC2 API:
 
-compute
-    allows you to manage OpenStack instances
+.. compute
+..     allows you to manage OpenStack instances
 
 ..
   ec2
@@ -49,9 +34,7 @@ compute
 
 First of all we need to create a keystone user for the nova service::
 
-   root@auth-node:~# openstack user create --domain default --password-prompt nova
-   User Password:
-   Repeat User Password:
+   user@ubuntu:~$ openstack user create --password openstack nova
    +-----------+----------------------------------+
    | Field     | Value                            |
    +-----------+----------------------------------+
@@ -63,11 +46,11 @@ First of all we need to create a keystone user for the nova service::
 
 Associate then the role of admin to the user nova inside the project service::
 
-   openstack role add --project service --user nova admin 
+   user@ubuntu:~$ openstack role add --project service --user nova admin
 
 We need to create first the **compute** service::
 
-   root@auth-node:~# openstack service create --name nova --description "OpenStack Compute" compute
+   user@ubuntu:~$ openstack service create --name nova --description "OpenStack Compute" compute
    +-------------+----------------------------------+
    | Field       | Value                            |
    +-------------+----------------------------------+
@@ -80,50 +63,23 @@ We need to create first the **compute** service::
 
 and its endpoints::
 
-    root@auth-node:~# openstack endpoint create --region RegionOne compute public http://compute-node.example.org:8774/v2/%\(tenant_id\)s
-    +--------------+-------------------------------------------------------+
-    | Field        | Value                                                 |
-    +--------------+-------------------------------------------------------+
-    | enabled      | True                                                  |
-    | id           | 13baaaf28887442699d68b3d8f3faca5                      |
-    | interface    | public                                                |
-    | region       | RegionOne                                             |
-    | region_id    | RegionOne                                             |
-    | service_id   | fedb8e01d4964d59b15d386aed3eb681                      |
-    | service_name | nova                                                  |
-    | service_type | compute                                               |
-    | url          | http://compute-node.example.org:8774/v2/%(tenant_id)s |
-    +--------------+-------------------------------------------------------+
-
-    root@auth-node:~# openstack endpoint create --region RegionOne compute internal http://compute-node.example.org:8774/v2/%\(tenant_id\)s
-    +--------------+-------------------------------------------------------+
-    | Field        | Value                                                 |
-    +--------------+-------------------------------------------------------+
-    | enabled      | True                                                  |
-    | id           | 0b5c9c11af9e4b67a9fb9d1fa6b311f6                      |
-    | interface    | internal                                              |
-    | region       | RegionOne                                             |
-    | region_id    | RegionOne                                             |
-    | service_id   | fedb8e01d4964d59b15d386aed3eb681                      |
-    | service_name | nova                                                  |
-    | service_type | compute                                               |
-    | url          | http://compute-node.example.org:8774/v2/%(tenant_id)s |
-    +--------------+-------------------------------------------------------+
-
-    root@auth-node:~# openstack endpoint create --region RegionOne compute admin http://compute-node.example.org:8774/v2/%\(tenant_id\)s
-    +--------------+-------------------------------------------------------+
-    | Field        | Value                                                 |
-    +--------------+-------------------------------------------------------+
-    | enabled      | True                                                  |
-    | id           | ebf975bf15d04cf4bc55cf54bab6c022                      |
-    | interface    | admin                                                 |
-    | region       | RegionOne                                             |
-    | region_id    | RegionOne                                             |
-    | service_id   | fedb8e01d4964d59b15d386aed3eb681                      |
-    | service_name | nova                                                  |
-    | service_type | compute                                               |
-    | url          | http://compute-node.example.org:8774/v2/%(tenant_id)s |
-    +--------------+-------------------------------------------------------+
+    user@ubuntu:~$ openstack endpoint create compute \
+      --region RegionOne \
+      --publicurl 'http://130.60.24.120:8774/v2/%(tenant_id)s' \
+      --adminurl 'http://130.60.24.120:8774/v2/%(tenant_id)s' \
+      --internalurl 'http://compute-node:8774/v2/%(tenant_id)s'
+    +--------------+--------------------------------------------+
+    | Field        | Value                                      |
+    +--------------+--------------------------------------------+
+    | adminurl     | http://130.60.24.120:8774/v2/%(tenant_id)s |
+    | id           | fa78e52985144c7e8e859173c11ff730           |
+    | internalurl  | http://compute-node:8774/v2/%(tenant_id)s  |
+    | publicurl    | http://130.60.24.120:8774/v2/%(tenant_id)s |
+    | region       | RegionOne                                  |
+    | service_id   | 681d94dedbb84dc0b6ba772c611937b7           |
+    | service_name | nova                                       |
+    | service_type | compute                                    |
+    +--------------+--------------------------------------------+
 
 
 nova installation and configuration
@@ -131,8 +87,9 @@ nova installation and configuration
 
 Now we can continue the installation on the **compute-node**::
 
-  root@compute-node:~# apt-get -y install nova-api nova-cert nova-conductor \
-  nova-consoleauth nova-novncproxy nova-scheduler python-novaclient
+  root@compute-node:~# apt-get -y install nova-api nova-cert \
+    nova-conductor nova-consoleauth nova-novncproxy \
+    nova-scheduler python-novaclient
  
 The main configuration file for all `nova-*` services is
 ``/etc/nova/nova.conf``. In this case we need to update, as usual,
@@ -165,8 +122,8 @@ For keystone integration, ensure ``auth_strategy`` option is set in
     auth_strategy = keystone
 
     [keystone_authtoken]
-    auth_uri = http://auth-node.example.org:5000
-    auth_url = http://auth-node.example.org:35357
+    auth_uri = http://<FLOATING_IP_OF_BASTION_HOST>:5000
+    auth_url = http://<FLOATING_IP_OF_BASTION_HOST>:35357
     auth_plugin = password
     project_domain_id = default
     user_domain_id = default
@@ -189,20 +146,26 @@ Also, since we want to contact the glance server using the management
 network, we will also update option ``glance_api_servers``::
 
     [glance]
-    host=image-node.example.org
+    host=image-node
 
-In the ``[oslo_concurrency]`` section set the lock path (FIXME: better explanation of this part)::
+.. In the ``[oslo_concurrency]`` section set the lock path (FIXME: better
+.. explanation of this part)::
 
-    [oslo_concurrency]
-    lock_path = /var/lib/nova/tmp
+..     [oslo_concurrency]
+..     lock_path = /var/lib/nova/tmp
 
-At the end disable the EC2 API, please note that the options is already in the ``nova.conf`` file
-so you simply have to remove the ``ec2`` from the list. (FIXME: this is from the official documentation.
-Shall we keep it like this? If yes we have to understand why they decided to do it)::
+.. ANTONIO: Disabling it, let's see if it breaks
 
-    [DEFAULT]
-    ## ....
-    enabled_apis=osapi_compute,metadata
+.. At the end disable the EC2 API, please note that the options is
+.. already in the ``nova.conf`` file so you simply have to remove the
+.. ``ec2`` from the list. (FIXME: this is from the official
+.. documentation.  Shall we keep it like this? If yes we have to
+.. understand why they decided to do it)::
+
+..     [DEFAULT]
+..     ## ....
+..     enabled_apis=osapi_compute,metadata
+.. ANTONIO: Let's enable it, see if something breaks
 
 nova and neutron
 ----------------
@@ -219,11 +182,20 @@ need to specify a few more configuration options in
     security_group_api = neutron
 
     [neutron]
+    url = https://network-node:9696
     auth_strategy = keystone
     admin_tenant_name = service
     admin_username = neutron
     admin_password = openstack
-    admin_auth_url = http://auth-node.example.org:35357/v2.0
+    admin_auth_url = http://<FLOATING_IP_OF_BASTION_HOST>:35357/v2.0
+
+You also need to generate a random string (for instance with
+``uuidgen``) and update the ``[neutron]`` section as follow::
+
+    metadata_proxy_shared_secret = d1a6195d-5912-4ef9-b01f-426603d56bd2
+    service_metadata_proxy = true
+
+This is used to allow neutron to talk to the nova metadata service.
 
 ..
    ::
@@ -256,7 +228,7 @@ need to specify a few more configuration options in
 
 Sync the nova database::
 
-    root@compute-node:~# /bin/sh -c "nova-manage db sync" nova 
+    root@compute-node:~# nova-manage db sync
 
 Restart all the nova services::
 
@@ -266,16 +238,22 @@ Restart all the nova services::
 
 ``nova-manage`` can be used to check the status of the services::
 
-    root@compute-node:~# nova-manage service list
-    Binary           Host                                 Zone             Status     State Updated_At
-    nova-conductor   compute-node                             internal         enabled    :-)   2014-08-16 16:18:53
-    nova-scheduler   compute-node                             internal         enabled    :-)   2014-08-16 16:18:48
-    nova-consoleauth compute-node                             internal         enabled    :-)   2014-08-26 16:18:54
-    nova-cert        compute-node                             internal         enabled    :-)   2014-08-16 16:18:52
+    user@ubuntu:~$ nova service-list
+    +----+------------------+--------------+----------+---------+-------+----------------------------+-----------------+
+    | Id | Binary           | Host         | Zone     | Status  | State | Updated_at                 | Disabled Reason |
+    +----+------------------+--------------+----------+---------+-------+----------------------------+-----------------+
+    | 1  | nova-conductor   | compute-node | internal | enabled | up    | 2015-11-28T18:19:50.000000 | -               |
+    | 2  | nova-scheduler   | compute-node | internal | enabled | up    | 2015-11-28T18:19:46.000000 | -               |
+    | 3  | nova-consoleauth | compute-node | internal | enabled | up    | 2015-11-28T18:19:50.000000 | -               |
+    | 4  | nova-cert        | compute-node | internal | enabled | up    | 2015-11-28T18:19:46.000000 | -               |
+    +----+------------------+--------------+----------+---------+-------+----------------------------+-----------------+
 
-Similar output is given by ``nova service-list`` and ``nova host-list`` commands, although ``nova-manage`` 
-has direct access to the database, therefore must run on an host with the correct ``nova.conf``, while the
-``nova`` commands uses the network API, so you can run them from a computer not part of the cloud.
+From the **compute-node** you could also run ``nova-manage service
+list`` that gives you a similar output. The main difference is that
+``nova-manage`` does not access the nova API, so it needs to have
+direct access to the database. On the other hands, it works also if
+the API do not, for some reason.
+
 
 testing
 -------
@@ -463,4 +441,3 @@ Is it working? If not why?
        root@compute-node:~# export EC2_URL=http://compute-node.example.org:8773/services/Cloud
 
 
-`Next: neutron - Network service - *complex* version <neutron.rst>`_
