@@ -122,14 +122,17 @@ For keystone integration, ensure ``auth_strategy`` option is set in
     auth_strategy = keystone
 
     [keystone_authtoken]
-    auth_uri = http://<FLOATING_IP_OF_BASTION_HOST>:5000
-    auth_url = http://<FLOATING_IP_OF_BASTION_HOST>:35357
+    auth_uri = http://auth-node:5000
+    auth_url = http://auth-node:35357
     auth_plugin = password
     project_domain_id = default
     user_domain_id = default
     project_name = service
     username = nova
     password = openstack
+
+.. Note: admin_* are deprecated. However, also username is deprecated,
+.. and should be used user-name instead, but it doesn't work.
 
 Finally, a few options related to vnc display need to be changed in
 ``[DEFAULT]`` section::
@@ -141,6 +144,7 @@ Finally, a few options related to vnc display need to be changed in
    [vnc]
    vncserver_listen = <IP_OF_THE_COMPUTE_NODE> 
    vncserver_proxyclient_address = <IP_OF_THE_COMPUTE_NODE> 
+   novncproxy_base_url = http://<FLOATING_IP_OF_BASTION>:6080/vnc_auto.html
 
 Also, since we want to contact the glance server using the management
 network, we will also update option ``glance_api_servers``::
@@ -182,12 +186,14 @@ need to specify a few more configuration options in
     security_group_api = neutron
 
     [neutron]
-    url = https://network-node:9696
-    auth_strategy = keystone
-    admin_tenant_name = service
-    admin_username = neutron
-    admin_password = openstack
-    admin_auth_url = http://<FLOATING_IP_OF_BASTION_HOST>:35357/v2.0
+    url = http://network-node:9696
+    auth_url = http://auth-node:35357/
+    auth_plugin = password
+    project_name = service
+    username = neutron
+    password = openstack
+    user_domain_id = default
+    project_domain_id = default
 
 You also need to generate a random string (for instance with
 ``uuidgen``) and update the ``[neutron]`` section as follow::

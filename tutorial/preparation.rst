@@ -459,7 +459,7 @@ a reference these are the commands that you shuold issue::
 
 You can persist those changes using by:
 
-- use iptables-save to save the iptables rules,
+- install iptables-save to save the iptables rules,
 - set net.ipv4.ip_forward=1 inside /etc/sysctl.conf. 
 
 .. Next step is disabling the security constrains Neutron is a applying
@@ -677,39 +677,195 @@ will associate the `openstack` security group to all service nodes::
 
     user@ubuntu:~$ for node in {auth,image,volume,compute,network}-node; do openstack server add security group $node openstack; done
 
-Finally, we can setup the DNAT from the bastion host to all the
-internal services.
 
-For keystone (in my case, auth-node is `192.168.1.6`)::
+.. ANTONIO: We don't use DNAT but HAProxy, it's easier.
 
+.. Finally, we can setup the DNAT from the bastion host to all the
+.. internal services.
 
-    user@ubuntu:~$ iptables -t nat -A PREROUTING -p tcp -m multiport \
-      --dport 5000,35357 -j DNAT \
-      --to-destination 192.168.1.6 
-
-for nova (compute-node, 192.168.1.9)::
-
-    iptables -t nat -A PREROUTING -p tcp -m multiport --dport 8773,8774,8775,6080,80 -j DNAT --to-destination 192.168.1.9
-
-cinder::
-
-    iptables -t nat -A PREROUTING -p tcp  --dport 8776 -j DNAT --to-destination 192.168.1.8
-
-glance::
-
-    iptables -t nat -A PREROUTING -p tcp -m multiport --dport 9191,9292 -j DNAT --to-destination 192.168.1.7
+.. For keystone (in my case, auth-node is `192.168.1.6`)::
 
 
-neutron::
+..     user@ubuntu:~$ iptables -t nat -A PREROUTING -p tcp -m multiport \
+..        -d <IP_OF_BASTION_ON_PUBLIC_NETWORK> \
+..       --dport 5000,35357 -j DNAT \
+..       --to-destination 192.168.1.6 
 
-    iptables -t nat -A PREROUTING -p tcp --dport 9696 -j DNAT --to-destination 192.168.1.12
+.. for nova (compute-node, 192.168.1.9)::
+
+..     iptables -t nat -A PREROUTING -p tcp -m multiport -d <IP_OF_BASTION_ON_PUBLIC_NETWORK> --dport 8773,8774,8775,6080,80 -j DNAT --to-destination 192.168.1.9
+
+.. cinder::
+
+..     iptables -t nat -A PREROUTING -p tcp  --dport 8776 -d <IP_OF_BASTION_ON_PUBLIC_NETWORK> -j DNAT --to-destination 192.168.1.8
+
+.. glance::
+
+..     iptables -t nat -A PREROUTING -p tcp -m multiport -d <IP_OF_BASTION_ON_PUBLIC_NETWORK> --dport 9191,9292 -j DNAT --to-destination 192.168.1.7
 
 
-One last rule is needed to ensure the internal nodes can actually access the openstack services using the external IP::
+.. neutron::
 
-    iptables -A POSTROUTING -t nat -p tcp -m multiport --dport 5000,35357,8773,8775,6080,8774,9191,9292,9696 -j SNAT --to-source 192.168.1.4
+..     iptables -t nat -A PREROUTING -p tcp -d <IP_OF_BASTION_ON_PUBLIC_NETWORK> --dport 9696 -j DNAT --to-destination 192.168.1.12
 
-.. think about it
+
+.. One last rule is needed to ensure the internal nodes can actually access the openstack services using the external IP::
+
+..     iptables -A POSTROUTING -t nat -p tcp -m multiport -d 192.168.1.0/24 --dport 5000,35357,8773,8775,6080,8774,9191,9292,9696 -j SNAT --to-source 192.168.1.4
+
+We will use HAProxy to forward the incoming ports. This is also one of
+the possible software you would use in a production environment, when
+you want to load balance the load over multiple instances of the same
+services.
+
+::
+    root@bastion:~# apt-get install haproxy
+
+The configuration is located in ``/etc/haproxy/harpoxy.cfg``, and is
+simple but a bit verbose. A basic stanza for a service looks like::
+
+    listen <SERVICE_NAME>
+      bind <BASTION_IP_IN_OPENSTACK_PUBLIC_NETWORK>:<SERVICE_PORT>
+      mode http
+      option forwardfor
+      option httpchk
+      option tcpka
+      option tcplog
+      server <SERVICE_HOSTNAME> <SERVICE_NODE_IP>:<SERVICE_PORT> check inter 2000 rise 2 fall 5
+
+so if your bastion has ip 10.0.0.4 in network `openstack-public` and
+you are configuring the stanza for glance, which is on node
+`image-node` and has ip `192.168.1.7`, you will add::
+
+    listen glance
+      bind 10.0.0.4:9292
+      mode http
+      option forwardfor
+      option httpchk
+      option tcpka
+      option tcplog
+      server image-node 192.168.1.7:9292 check inter 2000 rise 2 fall 5
+
+A working (for me) haproxy.cfg file follows. Keep in mind that your
+IPs might be different::
+
+    global
+    	log /dev/log	local0
+    	log /dev/log	local1 notice
+    	chroot /var/lib/haproxy
+    	user haproxy
+    	group haproxy
+    	daemon
+
+    defaults
+    	log	global
+    	mode	http
+    	option	httplog
+    	option	dontlognull
+            contimeout 5000
+            clitimeout 50000
+            srvtimeout 50000
+    	errorfile 400 /etc/haproxy/errors/400.http
+    	errorfile 403 /etc/haproxy/errors/403.http
+    	errorfile 408 /etc/haproxy/errors/408.http
+    	errorfile 500 /etc/haproxy/errors/500.http
+    	errorfile 502 /etc/haproxy/errors/502.http
+    	errorfile 503 /etc/haproxy/errors/503.http
+    	errorfile 504 /etc/haproxy/errors/504.http
+
+    listen stats 10.0.0.4:1936
+      mode http
+      stats enable
+      stats uri  /
+      stats show-node
+
+    listen horizon
+      bind 10.0.0.4:80
+      mode http
+      option forwardfor
+      option httpchk
+      option tcpka
+      option tcplog
+      server compute-node 192.168.1.9:80 check inter 2000 rise 2 fall 5
+
+    listen keystone_admin
+      bind 10.0.0.4:35357
+      mode http
+      option forwardfor
+      option httpchk
+      option tcpka
+      option tcplog
+      server auth-node 192.168.1.6:35357 check inter 2000 rise 2 fall 5
+
+    listen keystone
+      bind 10.0.0.4:5000
+      mode http
+      option forwardfor
+      option httpchk
+      option tcpka
+      option tcplog
+      server auth-node 192.168.1.6:5000 check inter 2000 rise 2 fall 5
+
+    listen glance
+      bind 10.0.0.4:9292
+      mode http
+      option forwardfor
+      option httpchk
+      option tcpka
+      option tcplog
+      server image-node 192.168.1.7:9292 check inter 2000 rise 2 fall 5
+
+
+    listen glance_registry
+      bind 10.0.0.4:9191
+      mode http
+      option forwardfor
+      option httpchk
+      option tcpka
+      option tcplog
+      server image-node 192.168.1.7:9191 check inter 2000 rise 2 fall 5
+
+    listen nova
+      bind 10.0.0.4:8774
+      mode http
+      option forwardfor
+      option httpchk
+      option tcpka
+      option tcplog
+      server compute-node 192.168.1.9:8774 check inter 2000 rise 2 fall 5
+
+    listen neutron
+      bind 10.0.0.4:9696
+      mode http
+      option forwardfor
+      option httpchk
+      option tcpka
+      option tcplog
+      server network-node 192.168.1.12:9696 check inter 2000 rise 2 fall 5
+
+    listen cinder
+      bind 10.0.0.4:8776
+      mode http
+      option forwardfor
+      option httpchk
+      option tcpka
+      option tcplog
+      server volume-node 192.168.1.8:8776 check inter 2000 rise 2 fall 5
+
+    listen vncproxy
+      bind 10.0.0.4:6080
+      mode http
+      option forwardfor
+      option httpchk
+      option tcpka
+      option tcplog
+      server compute-node 192.168.1.6:6080 check inter 2000 rise 2 fall 5
+
+Ensure the file ``/etc/default/haproxy`` contains ``ENABLED=1`` and
+restart haproxy::
+
+    root@bastion:~# service haproxy restart
+
 
 Install openstack repository and ntp
 ------------------------------------

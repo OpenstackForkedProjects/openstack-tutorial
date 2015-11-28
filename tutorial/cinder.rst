@@ -306,11 +306,14 @@ the following options are defined::
     connection = mysql+pymysql://cinder:openstack@db-node/cinder
 
     [keystone_authtoken]
-    auth_uri = http://auth-node.example.org:5000
-    identity_uri = http://130.60.24.120:35357
-    admin_tenant_name = service
-    admin_user = cinder
-    admin_password = openstack
+    auth_uri = http://auth-node:5000
+    auth_url = http://auth-node:35357
+    auth_plugin = password
+    project_domain_id = default
+    user_domain_id = default
+    project_name = service
+    username = cinder
+    password = openstack
 
     [oslo_concurrency]
     lock_path = /var/lib/cinder/tm
@@ -320,6 +323,16 @@ the following options are defined::
     volume_group = cinder-volumes
     iscsi_protocol = iscsi
     iscsi_helper = tgtadm
+    
+    [keymgr]
+    encryption_auth_url=http://auth-node:5000/v3
+
+.. the encryption_auth_url is pretty strange. If you don't enable it
+.. you will get an error while running cinder quota-show <tenant-id>
+.. This is an admin action, but unfortunately it's executed by
+.. horizon. It would ignore an authentication error, but if this
+.. option is not set it will raise an error 500 instead, which is not
+.. ignored by horizon.
 
 .. also needed 
    rabbit_userid = openstack

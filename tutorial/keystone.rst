@@ -351,7 +351,7 @@ Go on with creating a demo user and project::
     | parent_id   | None                             |
     +-------------+----------------------------------+
 
-    root@auth-node:~# openstack user create --domain default --password-prompt demo
+    root@auth-node:~# openstack user create --password demo demo
     User Password:
     Repeat User Password:
     +-----------+----------------------------------+

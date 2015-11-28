@@ -145,10 +145,13 @@ On both files,  ``glance-api.conf`` and
 
     [keystone_authtoken]
     auth_uri = http://auth-node:5000
-    identity_uri = http://auth-node:35357
-    admin_user = glance
-    admin_password = openstack
-    admin_tenant_name = service
+    auth_url = http://auth-node:35357
+    auth_plugin = password
+    project_domain_id = default
+    user_domain_id = default
+    project_name = service
+    username = glance
+    password = openstack
 
 We need to specify which paste pipeline we are using. We are not entering into details
 here, just check that the following option is present again in both ``glance-api.conf`` 

@@ -64,16 +64,20 @@ for starting an OpenStack instance is done. Note that this is very high level de
 Software installation
 ---------------------
 
-Since our compute nodes support *nested virtualization* we can install **kvm**::
+Since our compute nodes support *nested virtualization* we can install
+**kvm**::
 
-    root@hypervisor-1 # apt-get install -y nova-compute-kvm sysfsutils 
+    root@hypervisor-1:~# apt-get install -y nova-compute-kvm sysfsutils 
 
 This will also install the **nova-compute-kvm** package and all its dependencies.
 
-   In order to allow the compute nodes to access the MySQL server you must 
-   install the **MySQL python library**:: 
+.. ANTONIO: not needed since nova-conductor is used for nova.
+.. Not sure if the plugin agent needs it but I doubt it.
 
-       root@hypervisor-1 # apt-get install -y python-mysqldb
+.. In order to allow the compute nodes to access the MySQL server you
+.. must install the **MySQL python library**::
+
+..    root@hypervisor-1:~# apt-get install -y python-mysqldb
 
 nova configuration
 ------------------
@@ -96,17 +100,17 @@ The minimum information you have to provide in the ``/etc/nova/nova.conf`` file 
     lock_path = /var/lib/nova/tmp
     
     [glance]
-    host = image-node.example.org  
+    host = image-node
         
     [vnc]
     enabled = True
     vncserver_listen = 0.0.0.0
     vncserver_proxyclient_address = <IP_OF_THE_HYPERVISOR_HOST>
-    novncproxy_base_url = http://<IP_OF_THE_NOVA_COMPUTE_HOST>:6080/vnc_auto.html 
+    novncproxy_base_url = http://<FLOATING_IP_OF_BASTION_HOST>:6080/vnc_auto.html 
 
     [keystone_authtoken]
-    auth_uri = http://auth-node.example.org:5000
-    auth_url = http://auth-node.example.org:35357
+    auth_uri = http://auth-node:5000
+    auth_url = http://auth-node:35357
     auth_plugin = password
     project_domain_id = default
     user_domain_id = default
@@ -131,9 +135,9 @@ You can just replace the ``/etc/nova/nova.conf`` file with the content displayed
 Check if the ``virt_type`` inside the ``[libvirt]`` of the ``/etc/nova/nova-compute.conf``
 is set to ``kvm``.
 
-Finaly remove the SQLite database::
+.. Finaly remove the SQLite database::
 
-   root@hypervisor-1 rm -f /var/lib/nova/nova.sqlite
+..    root@hypervisor-1 rm -f /var/lib/nova/nova.sqlite
 
 .. 
    # We may not have to do the physical configuration
@@ -205,12 +209,14 @@ the following lines to are presents in ``/etc/nova/nova.conf``::
     security_group_api = neutron
 
     [neutron]
-    url = http://network-node.example.org:9696
-    admin_auth_url = http://auth-node-example.org:35357
-    region_name = RegionOne
-    admin_tenant_name = service
-    admin_username = neutron
-    admin_password = openstack
+    url = http://network-node:9696
+    auth_url = http://auth-node:35357/
+    auth_plugin = password
+    project_name = service
+    username = neutron
+    password = openstack
+    user_domain_id = default
+    project_domain_id = default
 
 Ensure the `br-int` bridge has been created by the installer::
 
@@ -242,13 +248,13 @@ options in the ``/etc/neutron/neutron.conf`` file::
     auth_strategy = keystone
     
     [oslo_messaging_rabbit]
-    rabbit_host = controller
+    rabbit_host = db-node
     rabbit_userid = openstack
     rabbit_password = openstack
 
     [keystone_authtoken]
-    auth_url = http://auth-node.example.org:5000
-    auth_uri = http://auth-node.example.org:35357
+    auth_url = http://auth-node:5000
+    auth_uri = http://auth-node:35357
     auth_plugin = password
     project_domain_id = default
     user_domain_id = default
@@ -288,16 +294,19 @@ and in OVS plugin configuration
     [ovs]
     # ...
     local_ip = <PRIVATE_IP_OF_COMPUTE_NODE>
-    [agent]	
     tunnel_type = gre
-    tunnel_types = gre
     enable_tunneling = True
+    
+    [agent]	
+    tunnel_types = gre
     	
     [securitygroup]
     # ...
 
     firewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
     enable_security_group = True
+
+.. ANTONIO: Rimosso, non serve (credo serva in kilo)
 
 
 Restart `nova-compute` and the neutron agent::

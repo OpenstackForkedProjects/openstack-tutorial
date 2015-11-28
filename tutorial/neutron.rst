@@ -126,11 +126,14 @@ RabbitMQ, keystone and MySQL information::
     rabbit_password = openstack 
 
     [keystone_authtoken]
-    auth_uri = http://<FLOATING_IP_OF_BASTION>:5000
-    identity_uri = http://<FLOATING_IP_OF_BASTION>:35357
-    admin_tenant_name = service
-    admin_user = neutron
-    admin_password = openstack
+    auth_uri = http://auth-node:5000
+    auth_url = http://auth-node:35357
+    auth_plugin = password
+    project_domain_id = default
+    user_domain_id = default
+    project_name = service
+    username = neutron
+    password = openstack
 
     [database]
     connection = mysql://neutron:openstack@db-node/neutron
@@ -159,7 +162,7 @@ communicate any change in the network topology. Again in the
     nova_admin_username = nova
     nova_admin_tenant_name = service 
     nova_admin_password = openstack
-    nova_admin_auth_url = http://auth-node:35357
+    nova_admin_auth_url = http://auth-node:5000/v2.0
 
 
 The L3-agent (responsible for routing, using iptables) reads the
@@ -252,10 +255,14 @@ options are set::
 In the ``/etc/neutron/plugins/ml2/openvswitch_agent.ini`` file set the 
 OpenVSwitch options::
 
-    
-    local_ip = <IP_OF_THE_NETWORK_NODE_ON_THE_PRIV_NETOWRK> 
-    tunnel_type = gre
+    [ovs]
+    local_ip = <IP_OF_THE_NETWORK_NODE_ON_THE_PRIV_NETOWRK>
     bridge_mappings = public:br-eth1
+    tunnel_type = gre
+    enable_tunneling = True
+    
+    [agent]
+    tunnel_types = gre
 
 Database bootstrap
 ------------------
@@ -482,7 +489,7 @@ setup the relevant environment variables (`OS_USERNAME`,
 Let's now create the L3 network, using the range of floating IPs we
 decided to use::
 
-     root@network-node:~#  neutron subnet-create ext-net --name ext-subnet \
+     root@network-node:~# neutron subnet-create ext-net --name ext-subnet \
      --allocation-pool start=10.0.0.100,end=10.0.0.200  --disable-dhcp \
      --gateway 10.0.0.1  10.0.0.0/24 
      +-------------------+----------------------------------------------+
@@ -502,7 +509,7 @@ decided to use::
      | network_id        | 52a86e27-13d3-407f-af35-1560bd6134a4         |
      | subnetpool_id     |                                              |
      | tenant_id         | 3aab8a31a7124de690032b398a83db37             |
->     +-------------------+----------------------------------------------+
+     +-------------------+----------------------------------------------+
 
 
 The ``--disable-dhcp`` option is needed because on this network we
@@ -539,7 +546,7 @@ addressing of other networks created by different tenants.
     | tenant_id                 | cacb2edc36a343c4b4747b8a8349371a     |
     +---------------------------+--------------------------------------+
     
-    root@network-node:~# neutron subnet-create demo-net --name demo-subnet --gateway 10.99.0.1 10.99.0.0/24
+    root@network-node:~# neutron subnet-create demo-net --name demo --gateway 10.99.0.1 10.99.0.0/24
     Created a new subnet:
     +------------------+----------------------------------------------+
     | Field            | Value                                        |
@@ -638,17 +645,17 @@ However, switching namespace...::
            valid_lft forever preferred_lft forever
         inet6 ::1/128 scope host 
            valid_lft forever preferred_lft forever
-    10: qr-32ea1402-bb: <BROADCAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default 
-        link/ether fa:16:3e:e2:d8:74 brd ff:ff:ff:ff:ff:ff
-        inet 10.99.0.1/24 brd 10.99.0.255 scope global qr-32ea1402-bb
+    8: qr-1970dd4b-d2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default 
+        link/ether fa:16:3e:ff:f1:1e brd ff:ff:ff:ff:ff:ff
+        inet 10.99.0.1/24 brd 10.99.0.255 scope global qr-1970dd4b-d2
            valid_lft forever preferred_lft forever
-        inet6 fe80::f816:3eff:fee2:d874/64 scope link 
+        inet6 fe80::f816:3eff:feff:f11e/64 scope link 
            valid_lft forever preferred_lft forever
-    11: qg-808b139c-45: <BROADCAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default 
-        link/ether fa:16:3e:ca:6f:eb brd ff:ff:ff:ff:ff:ff
-        inet 172.16.1.2/16 brd 172.16.255.255 scope global qg-808b139c-45
+    9: qg-e53e4354-9f: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default 
+        link/ether fa:16:3e:3a:36:81 brd ff:ff:ff:ff:ff:ff
+        inet 10.0.0.100/24 brd 10.0.0.255 scope global qg-e53e4354-9f
            valid_lft forever preferred_lft forever
-        inet6 fe80::f816:3eff:feca:6feb/64 scope link 
+        inet6 fe80::f816:3eff:fe3a:3681/64 scope link 
            valid_lft forever preferred_lft forever
 
 will show you the `10.99.0.1` ip address, that has been automatically
@@ -663,32 +670,34 @@ Now, as you can see::
     +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------+
     | id                                   | name | mac_address       | fixed_ips                                                                         |
     +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------+
-    | 32ea1402-bb31-4575-8c14-06aea02d3442 |      | fa:16:3e:e2:d8:74 | {"subnet_id": "5d4c6c72-9cf8-4272-8cec-08bd04b4b1f4", "ip_address": "10.99.0.1"}  |
-    | 808b139c-4598-4bf4-92b4-1a728aa0a21e |      | fa:16:3e:ca:6f:eb | {"subnet_id": "d7fc327b-8e04-43ce-bad4-98840b9b0927", "ip_address": "172.16.1.2"} |
+    | 1970dd4b-d28c-47ab-b92b-5198a1f220ef |      | fa:16:3e:ff:f1:1e | {"subnet_id": "87b4b32d-f117-4839-860b-0c08a4d1c668", "ip_address": "10.99.0.1"}  |
+    | 22900d40-8d75-4f46-b91e-11a974611155 |      | fa:16:3e:bd:8e:70 | {"subnet_id": "87b4b32d-f117-4839-860b-0c08a4d1c668", "ip_address": "10.99.0.2"}  |
+    | e53e4354-9fc8-427a-81a6-5598df819f5e |      | fa:16:3e:3a:36:81 | {"subnet_id": "3254e750-4da1-4308-a97c-2381268c044c", "ip_address": "10.0.0.100"} |
     +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------+
     root@network-node:~# neutron subnet-list
-    +--------------------------------------+-------------+---------------+------------------------------------------------+
-    | id                                   | name        | cidr          | allocation_pools                               |
-    +--------------------------------------+-------------+---------------+------------------------------------------------+
-    | 5d4c6c72-9cf8-4272-8cec-08bd04b4b1f4 | demo-subnet | 10.99.0.0/24  | {"start": "10.99.0.2", "end": "10.99.0.254"}   |
-    | d7fc327b-8e04-43ce-bad4-98840b9b0927 | ext-subnet  | 172.16.0.0/16 | {"start": "172.16.1.1", "end": "172.16.1.254"} |
-    +--------------------------------------+-------------+---------------+------------------------------------------------+
+    +--------------------------------------+------------+--------------+----------------------------------------------+
+    | id                                   | name       | cidr         | allocation_pools                             |
+    +--------------------------------------+------------+--------------+----------------------------------------------+
+    | 3254e750-4da1-4308-a97c-2381268c044c | ext-subnet | 10.0.0.0/24  | {"start": "10.0.0.100", "end": "10.0.0.200"} |
+    | 87b4b32d-f117-4839-860b-0c08a4d1c668 | demo       | 10.99.0.0/24 | {"start": "10.99.0.2", "end": "10.99.0.254"} |
+    +--------------------------------------+------------+--------------+----------------------------------------------+
 
 an IP address has been assigned to the virtual port connected to the
 `ext-subnet` subnetwork. This is only visible on the router namespace,
 as you have already seen::
 
-    root@network-node:~# ip netns exec qrouter-3616bd03-0100-4247-9699-2839e360a688 ip addr show | grep 172
-        inet 172.16.1.2/16 brd 172.16.255.255 scope global qg-808b139c-45
+    root@network-node:~# ip netns exec qrouter-3616bd03-0100-4247-9699-2839e360a688 ip addr show | grep 10.0
+        inet 10.0.0.100/24 brd 10.0.0.255 scope global qg-e53e4354-9f
 
-If everything went fine, you should be able to ping this IP address
-from the physical node::
 
-    [root@gks-061 ~]# ping 172.16.1.2 -c 1
-    PING 172.16.1.2 (172.16.1.2) 56(84) bytes of data.
-    64 bytes from 172.16.1.2: icmp_seq=1 ttl=64 time=0.307 ms
+You should be able to ping this IP from the bastion host::
 
-    --- 172.16.1.2 ping statistics ---
+    root@bastion:~# ping 10.0.0.100 -c 1
+    PING 10.0.0.100 (10.0.0.100) 56(84) bytes of data.
+    64 bytes from 10.0.0.100: icmp_seq=1 ttl=64 time=0.651 ms
+
+    --- 10.0.0.100 ping statistics ---
     1 packets transmitted, 1 received, 0% packet loss, time 0ms
-    rtt min/avg/max/mdev = 0.307/0.307/0.307/0.000 ms
+    rtt min/avg/max/mdev = 0.651/0.651/0.651/0.000 ms
+    root@bastion:~# 
 
