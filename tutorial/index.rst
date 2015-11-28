@@ -7,7 +7,6 @@ Tables of contents
    cli_interface
    python_interface
    preparation
-   openstack_overview
    basic_services
    keystone
    glance
