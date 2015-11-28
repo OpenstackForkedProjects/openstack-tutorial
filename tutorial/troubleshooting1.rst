@@ -492,6 +492,8 @@ proposed sabotages (but you can be creative!)
 
   and see what does **not** work anymore.
 
+* remove option [paste_deploy]/flavor from glance (and have fun debugging!)
+
 * remove or replace with an invalid IP address the ``rabbit_host``
   configuration option on one of the configuration file and restart
   the service.

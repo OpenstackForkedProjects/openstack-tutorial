@@ -18,8 +18,6 @@ Glance is actually composed of two different services:
 * **glance-registry** used by **glance-api** to actually retrieve image
   metadata when using the old v1 protocol.
 
-Very good explanation about what glance does is available on `this
-blogpost <http://bcwaldon.cc/2012/11/06/openstack-image-service-grizzly.html>`_
 
 database and keystone setup
 ---------------------------
@@ -32,8 +30,7 @@ On the **db-node** create the database and the MySQL user::
 
     root@db-node:~# mysql -u root -p
     MariaDB [(none)]> CREATE DATABASE glance;
-    MariaDB [(none)]> GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY 'openstack';
-    MariaDB [(none)]> GRANT ALL ON glance.* TO 'glance'@'%' IDENTIFIED BY 'openstack';
+    MariaDB [(none)]> GRANT ALL ON glance.* TO 'glance'@'image-node' IDENTIFIED BY 'openstack';
     MariaDB [(none)]> FLUSH PRIVILEGES;
     MariaDB [(none)]> exit;
 
@@ -45,9 +42,7 @@ specifying login, password and endpoint all the times.
 First of all we create a `glance` user for keystone, belonging to the `service` 
 project. You could also use the `admin` user, but it's better not to mix things::
 
-    root@auth-node:~# openstack user create --domain default --password-prompt glance
-    User Password:
-    Repeat User Password:
+    user@ubuntu:~# openstack user create --password openstack glance
     +-----------+----------------------------------+
     | Field     | Value                            |
     +-----------+----------------------------------+
@@ -59,14 +54,14 @@ project. You could also use the `admin` user, but it's better not to mix things:
 
 Then we need to give admin permissions to it::
 
-    root@auth-node:~# openstack role add --project service --user glance admin 
+    user@ubuntu:~# openstack role add --project service --user glance admin 
 
 Note that the command does not print any confirmation on successful completion.
 Please note that we could have created only one user for all the services, but this is a cleaner solution.
 
 We need then to create the **image** service::
 
-    root@auth-node:~# openstack service create --name glance --description "OpenStack Image service" image
+    user@ubuntu:~# openstack service create --name glance --description "OpenStack Image service" image
     +-------------+----------------------------------+
     | Field       | Value                            |
     +-------------+----------------------------------+
@@ -77,52 +72,26 @@ We need then to create the **image** service::
     | type        | image                            |
     +-------------+----------------------------------+
 
-and the related endpoints::
+and the related endpoints. Now, about that: the version of openstack
+client you install on your node is a bit newer than the one installed
+via debian, so the syntax is a bit different::
 
-    root@auth-node:~# openstack endpoint create --region RegionOne image public http://image-node.example.org:9292
-    +--------------+------------------------------------+
-    | Field        | Value                              |
-    +--------------+------------------------------------+
-    | enabled      | True                               |
-    | id           | 1ef409678f664130a1cb042ee846b9a4   |
-    | interface    | public                             |
-    | region       | RegionOne                          |
-    | region_id    | RegionOne                          |
-    | service_id   | 572baa15763a44729f7ffe63e0f1d585   |
-    | service_name | glance                             |
-    | service_type | image                              |
-    | url          | http://image-node.example.org:9292 |
-    +--------------+------------------------------------+
-
-    root@auth-node:~# openstack endpoint create --region RegionOne image internal http://image-node.example.org:9292
-    +--------------+------------------------------------+
-    | Field        | Value                              |
-    +--------------+------------------------------------+
-    | enabled      | True                               |
-    | id           | 553af64d54ed445e9a4d3dc507430f9f   |
-    | interface    | internal                           |
-    | region       | RegionOne                          |
-    | region_id    | RegionOne                          |
-    | service_id   | 572baa15763a44729f7ffe63e0f1d585   |
-    | service_name | glance                             |
-    | service_type | image                              |
-    | url          | http://image-node.example.org:9292 |
-    +--------------+------------------------------------+
-
-    root@auth-node:~# openstack endpoint create --region RegionOne image admin http://image-node.example.org:9292
-    +--------------+------------------------------------+
-    | Field        | Value                              |
-    +--------------+------------------------------------+
-    | enabled      | True                               |
-    | id           | f39a4b90d9cd42beba37e4016c74ed12   |
-    | interface    | admin                              |
-    | region       | RegionOne                          |
-    | region_id    | RegionOne                          |
-    | service_id   | 572baa15763a44729f7ffe63e0f1d585   |
-    | service_name | glance                             |
-    | service_type | image                              |
-    | url          | http://image-node.example.org:9292  |
-    +--------------+------------------------------------+
+    user@ubuntu:~# openstack endpoint create --region RegionOne \
+      image --publicurl http://130.60.24.120:9292 \
+      --internalurl http://image-node:9292 \
+      --adminurl http://130.60.24.120:9292
+    +--------------+----------------------------------+
+    | Field        | Value                            |
+    +--------------+----------------------------------+
+    | adminurl     | http://130.60.24.120:9292        |
+    | id           | ef0f5d15de354874b23d1b2f90ad4838 |
+    | internalurl  | http://image-node:9292           |
+    | publicurl    | http://130.60.24.120:9292        |
+    | region       | RegionOne                        |
+    | service_id   | bf291334f2c64260a633a5cb8a435948 |
+    | service_name | glance                           |
+    | service_type | image                            |
+    +--------------+----------------------------------+
 
 
 installation and configuration
@@ -130,7 +99,7 @@ installation and configuration
 
 On the **image-node** install the **glance** package::
 
-    root@image-node:~# aptitude -y install glance python-glanceclient 
+    root@image-node:~# apt-get -y install glance python-glanceclient 
 
 To configure the glance service we need to edit a few files in ``/etc/glance``:
 
@@ -175,14 +144,11 @@ On both files,  ``glance-api.conf`` and
 ``glance-registry.conf``, ensure the following are set::
 
     [keystone_authtoken]
-    auth_uri = http://auth-node.example.org:5000
-    auth_url = http://auth-node.example.org:35357
-    auth_plugin = password
-    project_domain_id = default
-    user_domain_id = default
-    project_name = service
-    username = glance
-    password = openstack
+    auth_uri = http://auth-node:5000
+    identity_uri = http://auth-node:35357
+    admin_user = glance
+    admin_password = openstack
+    admin_tenant_name = service
 
 We need to specify which paste pipeline we are using. We are not entering into details
 here, just check that the following option is present again in both ``glance-api.conf`` 
@@ -224,30 +190,28 @@ Like we did with keystone, we need to populate the glance database::
 
 Now we are ready to restart the glance services::
 
-    root@image-node:~# service glance-api restart
-    root@image-node:~# service glance-registry restart
+    root@image-node:~# restart glance-api restart
+    root@image-node:~# restart glance-registry restart
 
-As we did for keystone, we can set environment variables in order to
-access glance::
+From your laptop you should now be able to access glance::
 
-    root@image-node:~# export OS_USERNAME=glance
-    root@image-node:~# export OS_PASSWORD=openstack
-    root@image-node:~# export OS_TENANT_NAME=service
-    root@image-node:~# export OS_IMAGE_API_VERSION=2
-    root@image-node:~# export OS_AUTH_URL=http://auth-node.example.org:5000/v2.0
+    user@ubuntu:~$ glance image-list
+    +----+------+
+    | ID | Name |
+    +----+------+
+    +----+------+
 
-You may want to save those variables in a file and source it next time you need to perform administrative
-operations on the image node.
+
 
 Testing
 -------
 
 First of all, let's download a very small test image::
 
-    root@image-node:~# wget http://download.cirros-cloud.net/0.3.3/cirros-0.3.3-x86_64-disk.img
+    user@ubuntu:~$ wget http://download.cirros-cloud.net/0.3.3/cirros-0.3.3-x86_64-disk.img
 
 .. Note that if the --os-endpoint-type is not specified glance will try to use 
-   publicurl and if the image-node.example.org is not in /etc/hosts an error 
+   publicurl and if the 130.60.24.120 is not in /etc/hosts an error 
    will be issued.  
 
 (You can also download an Ubuntu distribution from the official
@@ -255,7 +219,12 @@ First of all, let's download a very small test image::
 
 The command line tool to manage images is ``glance``. Uploading an image is easy::
 
-   root@image-node:~# glance image-create --name cirros-0.3.3 --visibility public --container-format bare --disk-format qcow2 --file cirros-0.3.3-x86_64-disk.img
+   user@ubuntu:~$ glance image-create \
+     --name cirros-0.3.3 \
+     --visibility public \
+     --container-format bare \
+     --disk-format qcow2 \
+     --file cirros-0.3.3-x86_64-disk.img
    +------------------+--------------------------------------+
    | Property         | Value                                |
    +------------------+--------------------------------------+
@@ -297,7 +266,7 @@ The command line tool to manage images is ``glance``. Uploading an image is easy
 Using ``glance`` command you can also list the images currently
 uploaded on the image store::
 
-   root@image-node:~# glance image-list
+   user@ubuntu:~$ glance image-list
    +--------------------------------------+--------------+
    | ID                                   | Name         |
    +--------------------------------------+--------------+

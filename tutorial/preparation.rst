@@ -704,6 +704,12 @@ neutron::
     iptables -t nat -A PREROUTING -p tcp --dport 9696 -j DNAT --to-destination 192.168.1.12
 
 
+One last rule is needed to ensure the internal nodes can actually access the openstack services using the external IP::
+
+    iptables -A POSTROUTING -t nat -p tcp -m multiport --dport 5000,35357,8773,8775,6080,8774,9191,9292,9696 -j SNAT --to-source 192.168.1.4
+
+.. think about it
+
 Install openstack repository and ntp
 ------------------------------------
 

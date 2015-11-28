@@ -57,7 +57,6 @@ and password for the keystone service::
     root@db-node:~# mysql -u root -p
     MariaDB [(none)]> CREATE DATABASE keystone;
     MariaDB [(none)]> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY 'openstack';
-    MariaDB [(none)]> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY 'openstack';
     MariaDB [(none)]> FLUSH PRIVILEGES;
     MariaDB [(none)]> exit
 
@@ -292,9 +291,7 @@ correct environment variables::
 
 Create the **admin** user::
 
-    root@auth-node:~# openstack user create --domain default --password-prompt admin
-    User Password:
-    Repeat User Password:
+    root@auth-node:~# openstack user create --password admin admin
     +-----------+----------------------------------+
     | Field     | Value                            |
     +-----------+----------------------------------+
