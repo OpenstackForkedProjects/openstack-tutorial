@@ -206,14 +206,11 @@ the following lines to are presents in ``/etc/nova/nova.conf``::
 
     [neutron]
     url = http://network-node.example.org:9696
-    auth_url = http://auth-node-example.org:35357
-    auth_plugin = password
-    project_domain_id = default
-    user_domain_id = default
+    admin_auth_url = http://auth-node-example.org:35357
     region_name = RegionOne
-    project_name = service
-    username = neutron
-    password = openstack
+    admin_tenant_name = service
+    admin_username = neutron
+    admin_password = openstack
 
 Ensure the `br-int` bridge has been created by the installer::
 
@@ -250,18 +247,14 @@ options in the ``/etc/neutron/neutron.conf`` file::
     rabbit_password = openstack
 
     [keystone_authtoken]
-    auth_uri = http://auth-node.example.org:5000
-    auth_url = http://auth-node.example.org:35357
+    auth_url = http://auth-node.example.org:5000
+    auth_uri = http://auth-node.example.org:35357
     auth_plugin = password
     project_domain_id = default
     user_domain_id = default
     project_name = service
     username = neutron
     password = openstack
-
-.. in kilo:
-   auth_uri = http://auth-node:35357/v2.0/
-   identity_uri = http://auth-node:5000
 
 ..
    Again on ``/etc/neutron/neutron.conf``, configure the neutron to use
@@ -288,10 +281,13 @@ The ML2 plugin is configured in
     # ...
 
     tunnel_id_ranges = 1:1000
-    
+
+and in OVS plugin configuration
+``/etc/network/plugin2/ml2/openvswitch_agent.ini``::
+
     [ovs]
     # ...
-    local_ip = 10.0.0.20
+    local_ip = <PRIVATE_IP_OF_COMPUTE_NODE>
     [agent]	
     tunnel_type = gre
     tunnel_types = gre

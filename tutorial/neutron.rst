@@ -722,4 +722,3 @@ from the physical node::
     1 packets transmitted, 1 received, 0% packet loss, time 0ms
     rtt min/avg/max/mdev = 0.307/0.307/0.307/0.000 ms
 
-`Next: life of a VM (Compute service) - nova-compute <nova_compute.rst>`_
