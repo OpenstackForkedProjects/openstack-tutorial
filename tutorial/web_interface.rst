@@ -61,9 +61,9 @@ see a few of them during this tutorial.
 Today, however, we will only create a basic network setup: a private
 network attached to the `public` external network already present.
 
-1) create a private network
+1) create a private network with the related subnet and gateway
 2) create a router
-3) set gateway
+3) set the router as a gatway for the "uzh-public" network
 4) add router interface to the private network
 
 With this setup you will not be able to directly access the VM. To do
