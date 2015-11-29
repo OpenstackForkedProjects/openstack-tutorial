@@ -178,14 +178,13 @@ and then grant write permissions to /::
 By default RabbitMQ listens on port 5672, on all the available interfaces::
 
     root@db-node:~# netstat -tnlp | grep 5672
-    tcp        0      0 0.0.0.0:25672           0.0.0.0:*               LISTEN      6699/beam
     tcp6       0      0 :::5672                 :::*                    LISTEN      27903/beam      
 
 In order to prevent this, create (or modify, if it's already there)
 the file ``/etc/rabbitmq/rabbitmq-env.conf`` and add the following
 line::
 
-    NODE_IP_ADDRESS=<IP_OF_THE_DB_NODE_VM>
+    NODE_IP_ADDRESS=<IP_OF_DB_NODE>
 
 Whenever you update this file, restart the daemon::
 
@@ -193,8 +192,8 @@ Whenever you update this file, restart the daemon::
 
 and check again::
 
+    root@db-node:~# netstat -tnlp | grep 5672
     tcp        0      0 192.168.1.5:5672        0.0.0.0:*               LISTEN      7495/beam       
-    tcp        0      0 0.0.0.0:25672           0.0.0.0:*               LISTEN      7495/beam 
 
 Now we will proceed with the other services, but since most of the
 services need to create a MariaDB account and database, you probably
