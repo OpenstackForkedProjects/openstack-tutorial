@@ -44,9 +44,9 @@ Create Neutron user, service and endpoint::
 
     user@ubuntu:~$ openstack endpoint create network \
       --region RegionOne \
-      --publicurl http://<FLOATING_IP_BASTION>:9696 \
+      --publicurl http://<PUBLIC_IP_BASTION>:9696 \
       --internalurl http://network-node:9696 \
-      --adminurl http://<FLOATING_IP_BASTION>:9696
+      --adminurl http://<PUBLIC_IP_BASTION>:9696
     +--------------+-----------------------------------+
     | Field        | Value                             |
     +--------------+-----------------------------------+
@@ -64,12 +64,12 @@ Create Neutron user, service and endpoint::
 ``network-node`` configuration
 ------------------------------
 
-and then ``eth1.cfg``::
+Please login to the network-node and then configure ``eth1.cfg``::
 
     root@network-node:~# cat > /etc/network/interfaces.d/eth1.cfg <<EOF
     > auto eth1
     > iface eth1 inet static
-    >   address 10.0.0.5
+    >   address <IP_ON_THE_OPENSTACK_PUBLIC_NETWORK>
     >   netmask 255.255.255.0
     >   gateway 10.0.0.1
     > EOF
@@ -317,13 +317,22 @@ same IPs assigned by Neutron, that are visible with the command::
     | ACTIVE     | a7d2c2f8-129b-4f4f-949b-ad137bb1ca23 | dad2ca78-380e-48aa-8454-1218feb47947 | 192.168.1.12 | fa:16:3e:d8:da:f1 |
     +------------+--------------------------------------+--------------------------------------+--------------+-------------------+
     
+    user@ubuntu:~$ nova interface-list bastion
+    +------------+--------------------------------------+--------------------------------------+--------------+-------------------+
+    | Port State | Port ID                              | Net ID                               | IP addresses | MAC Addr          |
+    +------------+--------------------------------------+--------------------------------------+--------------+-------------------+
+    | ACTIVE     | 4f5761b8-f25b-41e3-8c28-14beb203a8f3 | 40782fcb-6039-47a7-94ff-e0ac84583a90 | 192.168.1.4  | fa:16:3e:f3:12:c9 |
+    | ACTIVE     | e59f1d82-9019-4652-b71b-e5d0d2243bb4 | fb235b01-ed3a-4abc-af10-4c90330639f9 | 10.0.0.4     | fa:16:3e:42:9f:c8 |
+    +------------+--------------------------------------+--------------------------------------+--------------+-------------------+
+
+    
 To update the configuration of the eth0 interface we run::
 
     root@network-node:~# cat > /etc/network/interfaces.d/eth0.cfg  <<EOF
     > auto eth0
     > iface eth0 inet static
-    >   address 192.168.1.12
-    >   up ip route add 169.254.169.254/32 via 192.168.1.3 dev eth0
+    >   address <IP_OF_NETOWORK_NODE_ON_OPENSTACK_PRIVATE>
+    >   up ip route add 169.254.169.254/32 via <IP_OF_BASTION_HOST_ON_OPENSTACK_PRIVATE> dev eth0
     >   netmask 255.255.255.0
     > EOF
 
@@ -338,7 +347,7 @@ Now we update the create a new file for `br-eth1`::
     >   ovs_type OVSBridge
     >   post-up ovs-vsctl --may-exist add-port br-eth1 eth1
     >   post-up ip link set dev eth1 up
-    >   address 10.0.0.5
+    >   address <IP_OF_NETWORK_ON_OPENSTACK_PUBLIC>
     >   netmask 255.255.255.0
     >   gateway 10.0.0.1
     >   dns-nameservers 130.60.128.3 130.60.64.51
@@ -350,8 +359,8 @@ address of the interface will change (the MAC of br-eth1 will be used
 instead), and we need to force Neutron to remove any spoofing
 protection it usually puts in place.
 
-We know the port ID corresponding to eth1 from the previous ``nova
-interface-list`` command, so::
+We know the port ID corresponding to eth1 from the previous ``nova interface-list network-node`` 
+command, so::
 
     user@ubuntu:~$ neutron port-update \
       --port-security-enabled=False \
@@ -365,19 +374,40 @@ interfaces correctly.
 After the reboot, the openvswitch configuration should look like::
 
     root@network-node:~# ovs-vsctl show
-    1a05c398-3024-493f-b3c4-a01912688ba4
-        Bridge br-ex
-            Port br-ex
-                Interface br-ex
-                    type: internal
-            Port "eth0"
-                Interface "eth0"
-        Bridge br-int
-            fail_mode: secure
-            Port br-int
-                Interface br-int
-                    type: internal
-        ovs_version: "2.0.1"
+    bd472602-aece-48ec-8dd6-b73a8faecb1d
+    Bridge br-int
+        fail_mode: secure
+        Port br-int
+            Interface br-int
+                type: internal
+        Port "int-br-eth1"
+            Interface "int-br-eth1"
+                type: patch
+                options: {peer="phy-br-eth1"}
+        Port patch-tun
+            Interface patch-tun
+                type: patch
+                options: {peer=patch-int}
+    Bridge "br-eth1"
+        Port "eth1"
+            Interface "eth1"
+        Port "br-eth1"
+            Interface "br-eth1"
+                type: internal
+        Port "phy-br-eth1"
+            Interface "phy-br-eth1"
+                type: patch
+                options: {peer="int-br-eth1"}
+    Bridge br-tun
+        fail_mode: secure
+        Port br-tun
+            Interface br-tun
+                type: internal
+        Port patch-int
+            Interface patch-int
+                type: patch
+                options: {peer=patch-tun}
+    ovs_version: "2.4.0"
 
 ..
    Depending on your network interface driver, you may need to disable
@@ -470,7 +500,7 @@ setup the relevant environment variables (`OS_USERNAME`,
 `neutron` command::
 
     root@network-node:~# neutron net-create ext-net --router:external \
-         --provider:physical_network external --provider:network_type flat
+         --provider:physical_network public --provider:network_type flat
     Created a new network:
     +---------------------------+--------------------------------------+
     | Field                     | Value                                |
@@ -548,7 +578,7 @@ addressing of other networks created by different tenants.
     | tenant_id                 | cacb2edc36a343c4b4747b8a8349371a     |
     +---------------------------+--------------------------------------+
     
-    root@network-node:~# neutron subnet-create demo-net --name demo --gateway 10.99.0.1 10.99.0.0/24
+    root@network-node:~# neutron subnet-create demo-net --name demo-subnet --gateway 10.99.0.1 10.99.0.0/24
     Created a new subnet:
     +------------------+----------------------------------------------+
     | Field            | Value                                        |
@@ -590,7 +620,7 @@ and connect it to the subnet `demo-subnet`::
 
 and to the external network `external-net`::
 
-    root@network-node:~# neutron router-gateway-set demo-router external-net
+    root@network-node:~# neutron router-gateway-set demo-router ext-net
     Set gateway for router demo-router
 
 On the neutron node, you should see that new ports have been created
@@ -677,12 +707,13 @@ Now, as you can see::
     | e53e4354-9fc8-427a-81a6-5598df819f5e |      | fa:16:3e:3a:36:81 | {"subnet_id": "3254e750-4da1-4308-a97c-2381268c044c", "ip_address": "10.0.0.100"} |
     +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------+
     root@network-node:~# neutron subnet-list
-    +--------------------------------------+------------+--------------+----------------------------------------------+
-    | id                                   | name       | cidr         | allocation_pools                             |
-    +--------------------------------------+------------+--------------+----------------------------------------------+
-    | 3254e750-4da1-4308-a97c-2381268c044c | ext-subnet | 10.0.0.0/24  | {"start": "10.0.0.100", "end": "10.0.0.200"} |
-    | 87b4b32d-f117-4839-860b-0c08a4d1c668 | demo       | 10.99.0.0/24 | {"start": "10.99.0.2", "end": "10.99.0.254"} |
-    +--------------------------------------+------------+--------------+----------------------------------------------+
+    +--------------------------------------+-------------+--------------+----------------------------------------------+
+    | id                                   | name        | cidr         | allocation_pools                             |
+    +--------------------------------------+-------------+--------------+----------------------------------------------+
+    | 44c2e4d7-21c2-461f-9270-b35de336fdb1 | demo-subnet | 10.99.0.0/24 | {"start": "10.99.0.2", "end": "10.99.0.254"} |
+    | e4920247-3215-4593-9cf9-5670f6ed6363 | ext-subnet  | 10.0.0.0/24  | {"start": "10.0.0.100", "end": "10.0.0.200"} |
+    +--------------------------------------+-------------+--------------+----------------------------------------------+
+
 
 an IP address has been assigned to the virtual port connected to the
 `ext-subnet` subnetwork. This is only visible on the router namespace,
