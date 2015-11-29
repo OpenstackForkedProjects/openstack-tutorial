@@ -963,13 +963,18 @@ Requirements:
 * optionally: /home is stored on a cinder volume and exported to the
   compute nodes via NFS
 
+At the end of the exercise you will need to provide to the teachers:
+
+* a public IP address accessible from the lab
+
+
 DoD (Definition of Done)
 ------------------------
 
 The exercise can be considered completed IF AND ONLY IF:
 
-* given a public IP, we can login as user 'bofh' with password
-  'r00t15n0tthere' and submit a simple job using `srun` command
-* the job is executed on a node different from the one I'm logged in
-* I can check the status of the job with "squeue" and the status of
-  the cluster with "sinfo"
+* the teacher can login to the given IP using user **bofh** with password
+  **r00t15n0tthere** and submit a simple job using ``srun`` command.
+* the job must be executed on a node different from the login node
+* commands ``squeue`` and ``sinfo`` must work and return at least one
+  compute node different from the login node.

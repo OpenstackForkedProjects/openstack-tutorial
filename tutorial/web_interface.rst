@@ -129,13 +129,21 @@ One or more of the following hints could be helpful (or misleading):
   unless explicitly allowed
 * If you need persistent data you usually create a volume
 
+At the end of the exercise you will need to provide to the tichers:
+
+* an URL accessible from the lab
+
 DoD (Definition of Done)
 ------------------------
 
 The exercise can be considered completed IF AND ONLY IF:
 
-* Given an url of type http://130.60.24.[0-9]+/[a-zA-Z]+, I can run::
+* running the following command::
 
-      curl -s <url>
+      curl -s <URL>
 
-  and get your name as output
+  from the teacher's laptop, the output will look like::
+
+    Winston Smith
+
+  but with your name instead.
