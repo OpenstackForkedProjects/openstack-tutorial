@@ -42,7 +42,7 @@ specifying login, password and endpoint all the times.
 First of all we create a `glance` user for keystone, belonging to the `service` 
 project. You could also use the `admin` user, but it's better not to mix things::
 
-    user@ubuntu:~# openstack user create --password openstack glance
+    user@ubuntu:~$ openstack user create --password openstack glance
     +-----------+----------------------------------+
     | Field     | Value                            |
     +-----------+----------------------------------+
@@ -54,14 +54,14 @@ project. You could also use the `admin` user, but it's better not to mix things:
 
 Then we need to give admin permissions to it::
 
-    user@ubuntu:~# openstack role add --project service --user glance admin 
+    user@ubuntu:~$ openstack role add --project service --user glance admin 
 
 Note that the command does not print any confirmation on successful completion.
 Please note that we could have created only one user for all the services, but this is a cleaner solution.
 
 We need then to create the **image** service::
 
-    user@ubuntu:~# openstack service create --name glance --description "OpenStack Image service" image
+    user@ubuntu:~$ openstack service create --name glance --description "OpenStack Image service" image
     +-------------+----------------------------------+
     | Field       | Value                            |
     +-------------+----------------------------------+
@@ -76,7 +76,7 @@ and the related endpoints. Now, about that: the version of openstack
 client you install on your node is a bit newer than the one installed
 via debian, so the syntax is a bit different::
 
-    user@ubuntu:~# openstack endpoint create --region RegionOne \
+    user@ubuntu:~$ openstack endpoint create --region RegionOne \
       image --publicurl http://<PUBLIC_IP_OF_BASTION>:9292 \
       --internalurl http://image-node:9292 \
       --adminurl http://<PUBLIC_IP_OF_BASTION>:9292
@@ -98,7 +98,7 @@ installation and configuration
 
 On the **image-node** install the **glance** package::
 
-    root@image-node:~# apt-get -y install glance python-glanceclient 
+    root@image-node:~$ apt-get -y install glance python-glanceclient 
 
 To configure the glance service we need to edit a few files in ``/etc/glance``:
 
