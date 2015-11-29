@@ -21,7 +21,7 @@ Wednesday 3/12/2015
 
 * OpenStack architecture |openstack|
 * Installation of basic services:
-  - MySQL
+  - mariadb sql
   - rabbitmq
   - keystone
 
