@@ -271,15 +271,30 @@ On neutron you have two choices for L3 agent:
     \centering
     \includegraphics[width=0.9\linewidth]{neutron_concept}
   \end{figure}
-\begin{description}
-\item[network] A L2 network
-\item[subnet] An IPv4 or IPv6 network, living inside a \texttt{network}
-\item[port] a virtual switch port on a given \texttt{network}.
-\item[virt. interface] instance interface, connected to a \texttt{port}
-\end{description}
+% \begin{description}
+% \item[network] A L2 network
+% \item[subnet] An IPv4 or IPv6 network, living inside a \texttt{network}
+% \item[port] a virtual switch port on a given \texttt{network}.
+% \item[virt. interface] instance interface, connected to a \texttt{port}
+% \end{description}
 \end{frame}
 
 
+
+\begin{frame}
+  {Neutron artifacts}
+  \begin{itemize}
+  \item \textbf{network}: an L2 network (think of a VLAN)
+  \item \textbf{subnet}: an L3 network, with an IP range associated
+  \item \textbf{port}: a network interface (think of \texttt{Gigabit 0/1}
+    or \texttt{Vlan123} on a switch, but also \texttt{eth0} on a linux box)
+  \item \textbf{router}: a virtual router
+  \item \textbf{floating ip}: an ip in an \textit{external} network,
+    that is associated to a port in a private network (and also a port)
+  \item \textbf{security groups}: a set of firewall rules associated
+    to a port
+  \end{itemize}
+\end{frame}
 
 % \begin{frame}
 %   {neutron server}
@@ -391,7 +406,7 @@ On neutron you have two choices for L3 agent:
     \item[$\Rightarrow$] linux forwarding must be enabled
     \end{itemize}
   \item tap interface \texttt{qg-X} with \textit{public} IP, wired to
-    \texttt{br-int}.
+    \texttt{br-ex} (or whatever name you chose for your external bridge).
 
   \item tap interface \texttt{qr-X} with \textit{private} IP, wired to
     \texttt{br-int}.
