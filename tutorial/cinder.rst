@@ -127,9 +127,9 @@ and the related endpoints, using the services' id we just got::
         
 
     user@ubuntu:~$ openstack endpoint create --region RegionOne \
-      volume --publicurl 'http://130.60.24.120:8776/v1/%(tenant_id)s' \
-      --internalurl 'http://volume-node::8776/v1/%(tenant_id)s' \
-      --adminurl 'http://130.60.24.120::8776/v1/%(tenant_id)s'
+      volume --publicurl 'http://<PUBLIC_IP_BASTION>:8776/v1/%(tenant_id)s' \
+      --internalurl 'http://volume-node:8776/v1/%(tenant_id)s' \
+      --adminurl 'http://<PUBLIC_IP_BASTION>:8776/v1/%(tenant_id)s'
     +--------------+---------------------------------------------+
     | Field        | Value                                       |
     +--------------+---------------------------------------------+
@@ -144,9 +144,9 @@ and the related endpoints, using the services' id we just got::
     +--------------+---------------------------------------------+
 
     user@ubuntu:~$ openstack endpoint create --region RegionOne \
-      volumev2 --publicurl 'http://130.60.24.120:8776/v2/%(tenant_id)s' \
-      --internalurl 'http://volume-node::8776/v2/%(tenant_id)s' \
-      --adminurl 'http://130.60.24.120::8776/v2/%(tenant_id)s'
+      volumev2 --publicurl 'http://<PUBLIC_IP_BASTION>:8776/v2/%(tenant_id)s' \
+      --internalurl 'http://volume-node:8776/v2/%(tenant_id)s' \
+      --adminurl 'http://<PUBLIC_IP_BASTION>:8776/v2/%(tenant_id)s'
     +--------------+---------------------------------------------+
     | Field        | Value                                       |
     +--------------+---------------------------------------------+
@@ -180,7 +180,7 @@ Add a volume to volume-node instance
 You can do this via web interface, or from the command line (but be
 sure you are using the openstack credential of the **outer** cloud :))::
 
-    user@ubuntu:~$ cinder volume-create --display-name cinder 100
+    user@ubuntu:~$ cinder create --display-name cinder 100
     +---------------------+--------------------------------------+
     | Property            | Value                                |
     +---------------------+--------------------------------------+
@@ -199,6 +199,7 @@ sure you are using the openstack credential of the **outer** cloud :))::
     | status              | creating                             |
     | volume_type         | None                                 |
     +---------------------+--------------------------------------+
+
 
     user@ubuntu:~$ nova volume-attach volume-node e539ddc6-f31f-406a-b534-6fc2af1c231a
     +----------+--------------------------------------+
@@ -389,25 +390,15 @@ Testing cinder
 
 Cinder command line tool also allow you to pass user, password, tenant
 name and authentication URL both via command line options or
-environment variables. In order to make the commands easier to read we
-are going to set the environment variables and run cinder without
-options::
-
-    root@compute-node:~# export OS_PROJECT_DOMAIN_ID=default
-    root@compute-node:~# export OS_USER_DOMAIN_ID=default
-    root@compute-node:~# export OS_PROJECT_NAME=admin
-    root@compute-node:~# export OS_TENANT_NAME=admin
-    root@compute-node:~# export OS_USERNAME=admin
-    root@compute-node:~# export OS_PASSWORD=openstack
-    root@compute-node:~# export OS_AUTH_URL=http://auth-node.example.org:35357/v3
-    root@compute-node:~# export OS_IDENTITY_API_VERSION=3
+environment variables. Go back to your laptop and ensure you are doing 
+the testing using the credentials of the **inner-cloud** 
 
 You may want to save those variables in a file and source it next time you need to perform administrative
 operations on the volume node.
 
 Test cinder by creating a volume::
 
-    root@volume-node:~# cinder create --display-name test 1
+    user@ubuntu:~$ cinder create --display-name test 1
     +---------------------------------------+--------------------------------------+
     |                Property               |                Value                 |
     +---------------------------------------+--------------------------------------+
@@ -445,7 +436,7 @@ the logs and try to find out what the problem is, and how to solve it.
 Shortly after, a ``cinder list`` command should show you the newly
 created volume::
 
-    root@volume-node:~# cinder list
+    user@ubuntu:~$ cinder list
     +--------------------------------------+-----------+------------------+------+------+-------------+----------+-------------+-------------+
     |                  ID                  |   Status  | Migration Status | Name | Size | Volume Type | Bootable | Multiattach | Attached to |
     +--------------------------------------+-----------+------------------+------+------+-------------+----------+-------------+-------------+
@@ -513,13 +504,13 @@ Since the volume is not used by any VM, we can delete it with the
 ``cinder delete`` command (you can use the volume `Display Name`
 instead of the volume `id` if this is uniqe)::
 
-    root@volume-node:~# cinder delete d8047e68-ee9b-4ab5-a152-70b755ab3844 
+    user@ubuntu:~$ cinder delete d8047e68-ee9b-4ab5-a152-70b755ab3844 
 
 Deleting the volume can take some time. You will notice why if you
 check the process list on the volume node...::
 
     Request to delete volume d8047e68-ee9b-4ab5-a152-70b755ab3844 has been accepted.
-    root@volume-node:~# cinder list
+    user@ubuntu:~$ cinder list
     +--------------------------------------+----------+------------------+------+------+-------------+----------+-------------+-------------+
     |                  ID                  |  Status  | Migration Status | Name | Size | Volume Type | Bootable | Multiattach | Attached to |
     +--------------------------------------+----------+------------------+------+------+-------------+----------+-------------+-------------+
@@ -534,16 +525,11 @@ check the process list on the volume node...::
 
 After a while, the volume is deleted, and LV is deleted::
 
-    root@volume-node:~# cinder list 
+    user@ubuntu:~$ cinder list 
     +----+--------+------------------+------+------+-------------+----------+-------------+-------------+
     | ID | Status | Migration Status | Name | Size | Volume Type | Bootable | Multiattach | Attached to |
     +----+--------+------------------+------+------+-------------+----------+-------------+-------------+
     +----+--------+------------------+------+------+-------------+----------+-------------+-------------+
-
-    root@volume-node:~# lvs
-      LV     VG        Attr      LSize Pool Origin Data%  Move Log Copy%  Convert
-      root   golden-vg -wi-ao--- 7.76g                                           
-      swap_1 golden-vg -wi-ao--- 2.00g 
 
 ..
    **AGAIN MOVE TO THE TESTING SECTION, AS HERE IS NOT RELEVANT**::
