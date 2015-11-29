@@ -190,13 +190,20 @@ using DHCP protocol) reads file
     dnsmasq_config_file = /etc/neutron/dnsmasq-neutron.conf
     dnsmasq_dns_servers = 130.60.128.3,130.60.64.51
 
-Create the ``/etc/neutron/dnsmasq-neutron.conf`` file and insert:
-``dhcp-option-force=26,1450`` 
-This option is needed because overlay networks such as gre or vxlan
-increase overhead and decrease space available for the payload of 
-user data. So without knowledge of the virtual network infrastructure
-VM tend to send 1500 bytes MTU. The option above brings down the size
-to a reasonable value. 
+Create a file ``/etc/neutron/dnsmasq-neutron.conf`` with the following
+content::
+
+    dhcp-option-force=26,1450
+
+This option will instruct the dhcp server to send a smaller MTU (1450
+bytes) to the client. It is needed because the "physical" network (the
+vxlan network of the *outer* cloud) has MTU 1500, but since the GRE
+tunnel used to carry the *inner* tenant network has an header of
+approximately 50 bytes, the carried network needs to have a smaller
+MTU.
+
+In production you can avoid this by using an higher MTU for the
+physical network.
 
 The metadata agent works as the `nova-metadata-api` daemon we have
 seen while configuring `nova-network`. It basically works as a
