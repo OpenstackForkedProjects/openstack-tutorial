@@ -622,7 +622,7 @@ Let's create a separate security group::
 
 and open all the aforementioned ports::
 
-    user@ubuntu:~$ for port in 80 5000 35357 8773 8774 8775 8776 9191 9292 9696; \
+    user@ubuntu:~$ for port in 80 5000 35357 6080 8773 8774 8775 8776 9191 9292 9696; \
         do openstack security group rule create --dst-port $port openstack; \
         done
 
@@ -677,6 +677,21 @@ will associate the `openstack` security group to all service nodes::
 
     user@ubuntu:~$ for node in {auth,image,volume,compute,network}-node; do openstack server add security group $node openstack; done
 
+
+Hypervisors, however, also need ports starting from 5900 if you plan to use the vnc console::
+
+    user@ubuntu:~$ openstack security group rule create --dst-port 5900:6000 vncproxy
+    +-----------------+--------------------------------------+
+    | Field           | Value                                |
+    +-----------------+--------------------------------------+
+    | group           | {}                                   |
+    | id              | 932c1ce5-e8fc-4719-a972-a955cc89644d |
+    | ip_protocol     | tcp                                  |
+    | ip_range        | 0.0.0.0/0                            |
+    | parent_group_id | 57e7ae6a-d833-4423-9705-85ba9f22f5f9 |
+    | port_range      | 5900:6000                            |
+    +-----------------+--------------------------------------+
+    user@ubuntu:~$ openstack server add security group hypervisor-1 vncproxy
 
 .. ANTONIO: We don't use DNAT but HAProxy, it's easier.
 
@@ -779,15 +794,6 @@ IPs might be different::
       stats uri  /
       stats show-node
 
-    listen horizon
-      bind 10.0.0.4:80
-      mode http
-      option forwardfor
-      option httpchk
-      option tcpka
-      option tcplog
-      server compute-node 192.168.1.9:80 check inter 2000 rise 2 fall 5
-
     listen keystone_admin
       bind 10.0.0.4:35357
       mode http
@@ -825,24 +831,6 @@ IPs might be different::
       option tcplog
       server image-node 192.168.1.7:9191 check inter 2000 rise 2 fall 5
 
-    listen nova
-      bind 10.0.0.4:8774
-      mode http
-      option forwardfor
-      option httpchk
-      option tcpka
-      option tcplog
-      server compute-node 192.168.1.9:8774 check inter 2000 rise 2 fall 5
-
-    listen neutron
-      bind 10.0.0.4:9696
-      mode http
-      option forwardfor
-      option httpchk
-      option tcpka
-      option tcplog
-      server network-node 192.168.1.12:9696 check inter 2000 rise 2 fall 5
-
     listen cinder
       bind 10.0.0.4:8776
       mode http
@@ -852,14 +840,39 @@ IPs might be different::
       option tcplog
       server volume-node 192.168.1.8:8776 check inter 2000 rise 2 fall 5
 
-    listen vncproxy
-      bind 10.0.0.4:6080
+    listen horizon
+      bind 10.0.0.4:80
       mode http
       option forwardfor
       option httpchk
       option tcpka
       option tcplog
-      server compute-node 192.168.1.6:6080 check inter 2000 rise 2 fall 5
+      server compute-node 192.168.1.9:80 check inter 2000 rise 2 fall 5
+
+    listen nova
+      bind 10.0.0.4:8774
+      mode http
+      option forwardfor
+      option httpchk
+      option tcpka
+      option tcplog
+      server compute-node 192.168.1.9:8774 check inter 2000 rise 2 fall 5
+
+    listen vncproxy
+      bind 10.0.0.4:6080
+      option tcpka
+      option tcplog
+      server compute-node 192.168.1.9:6080 check inter 2000 rise 2 fall 5
+      
+    listen neutron
+      bind 10.0.0.4:9696
+      mode http
+      option forwardfor
+      option httpchk
+      option tcpka
+      option tcplog
+      server network-node 192.168.1.12:9696 check inter 2000 rise 2 fall 5
+
 
 Ensure the file ``/etc/default/haproxy`` contains ``ENABLED=1`` and
 restart haproxy::

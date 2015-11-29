@@ -149,6 +149,7 @@ plugin we are going to use. Again in the
     core_plugin = ml2
     service_plugins = router
     allow_overlapping_ips = True
+    advertise_mtu = True
 
 We also need to tell Neutron how to contact the `nova-api` service to
 communicate any change in the network topology. Again in the
@@ -186,6 +187,7 @@ using DHCP protocol) reads file
     interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver    
     dhcp_driver = neutron.agent.linux.dhcp.Dnsmasq
     use_namespaces = True
+    dnsmasq_dns_servers = 130.60.128.3,130.60.64.51
 
 The metadata agent works as the `nova-metadata-api` daemon we have
 seen while configuring `nova-network`. It basically works as a

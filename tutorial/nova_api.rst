@@ -142,6 +142,7 @@ Finally, a few options related to vnc display need to be changed in
    my_ip = <IP_OF_THE_COMPUTE_NODE> 
 
    [vnc]
+   novnc_enabled=true
    vncserver_listen = <IP_OF_THE_COMPUTE_NODE> 
    vncserver_proxyclient_address = <IP_OF_THE_COMPUTE_NODE> 
    novncproxy_base_url = http://<FLOATING_IP_OF_BASTION>:6080/vnc_auto.html
