@@ -38,7 +38,7 @@ Keystone
 
 Keystone stores information about different, independent services:
 
-* users, passwords and tenants
+* users, passwords and projects (or tenants)
 * authorization tokens
 * service catalog
 
@@ -105,12 +105,9 @@ Now you are ready to bootstrap the keystone database using the following command
 
     root@auth-node:~# keystone-manage db_sync
 
+..
     .. ANTONIO: Trying to run it as regular user, it's probably OK
     .. root@auth-node:~# su -s /bin/sh -c "keystone-manage db_sync" keystone
-
-Configure the Apache HTTP server by opening /etc/apache2/apache2.conf and change the
-``ServerName controller`` to the hostname of the controller (auth-node) in our case:
-``ServerName auth-node.example.org``.
 
 Create the ``/etc/apache2/sites-available/wsgi-keystone.conf`` with
 the following contents::
@@ -206,7 +203,7 @@ Keystone by default listens to two different ports::
        log_file = /var/log/keystone/keystone.log
 
 By default, only CRITICAL, ERROR and WARNING messages are logged. To
-also log INFO messages, add option::
+also log INFO messages, add option in ``/etc/keystone/keystone.conf``::
 
     verbose = True
 
@@ -288,13 +285,13 @@ work assuming you already set the correct environment variables::
 
 Create the **admin** user::
 
-    root@auth-node:~# openstack user create --password admin admin
+    root@auth-node:~# openstack user create --domain default --password openstack admin
     +-----------+----------------------------------+
     | Field     | Value                            |
     +-----------+----------------------------------+
     | domain_id | default                          |
     | enabled   | True                             |
-    | id        | 11a4e8d058ad40239f9ccde710cdc527 |
+    | id        | cb050c0c0c8345f4802379477d0fba1a |
     | name      | admin                            |
     +-----------+----------------------------------+
 
@@ -348,9 +345,7 @@ Go on with creating a demo user and project::
     | parent_id   | None                             |
     +-------------+----------------------------------+
 
-    root@auth-node:~# openstack user create --password demo demo
-    User Password:
-    Repeat User Password:
+    root@auth-node:~# openstack user create --domain default --password demo demo
     +-----------+----------------------------------+
     | Field     | Value                            |
     +-----------+----------------------------------+
@@ -403,9 +398,10 @@ The following command will create an endpoint associated to this
 service. About the IP: if you plan to use sshuttle also to connect to
 the API of the *inner* cloud, you should use the private IP of the
 specific service. If you are using DNAT (or haproxy), you can use the
-public IP of the bastion host::
+public IP of the bastion host. Please change the relative 
+``<PUBLIC_IP_OF_BASTIO>`` entried::
 
-    openstack endpoint create --region RegionOne identity public http://130.60.24.120:5000/v2.0
+    openstack endpoint create --region RegionOne identity public http://<PUBLIC_IP_OF_BASTION>:5000/v2.0
     +--------------+-----------------------------------+
     | Field        | Value                             |
     +--------------+-----------------------------------+
@@ -435,7 +431,7 @@ public IP of the bastion host::
     | url          | http://auth-node:5000/v2.0             |
     +--------------+----------------------------------------+
 
-    openstack endpoint create --region RegionOne identity admin http://130.60.24.120:35357/v2.0
+    openstack endpoint create --region RegionOne identity admin http://<PUBLIC_IP_OF_BASTION>:35357/v2.0
     +--------------+-----------------------------------------+
     | Field        | Value                                   |
     +--------------+-----------------------------------------+
@@ -498,8 +494,8 @@ to create two files containing the following environment variables::
     export OS_PROJECT_NAME=admin
     export OS_TENANT_NAME=admin
     export OS_USERNAME=admin
-    export OS_PASSWORD=ADMIN_PASS
-    export OS_AUTH_URL=http://130.60.24.120:35357/v3
+    export OS_PASSWORD=openstack
+    export OS_AUTH_URL=http://<PUBLIC_IP_OF_BASTION>:35357/v3
     export OS_IDENTITY_API_VERSION=3
 
     root@any-host:~# cat demo.sh 
@@ -508,8 +504,8 @@ to create two files containing the following environment variables::
     export OS_PROJECT_NAME=demo
     export OS_TENANT_NAME=demo
     export OS_USERNAME=demo
-    export OS_PASSWORD=DEMO_PASS
-    export OS_AUTH_URL=http://130.60.24.120:5000/v3
+    export OS_PASSWORD=demo
+    export OS_AUTH_URL=http://<PUBLIC_IP_OF_BASTION>:5000/v3
     export OS_IDENTITY_API_VERSION=3
 
 So that you can load them whenever you need to with::
