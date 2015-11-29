@@ -187,7 +187,16 @@ using DHCP protocol) reads file
     interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver    
     dhcp_driver = neutron.agent.linux.dhcp.Dnsmasq
     use_namespaces = True
+    dnsmasq_config_file = /etc/neutron/dnsmasq-neutron.conf
     dnsmasq_dns_servers = 130.60.128.3,130.60.64.51
+
+Create the ``/etc/neutron/dnsmasq-neutron.conf`` file and insert:
+``dhcp-option-force=26,1450`` 
+This option is needed because overlay networks such as gre or vxlan
+increase overhead and decrease space available for the payload of 
+user data. So without knowledge of the virtual network infrastructure
+VM tend to send 1500 bytes MTU. The option above brings down the size
+to a reasonable value. 
 
 The metadata agent works as the `nova-metadata-api` daemon we have
 seen while configuring `nova-network`. It basically works as a
