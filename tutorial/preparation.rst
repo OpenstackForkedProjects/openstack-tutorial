@@ -172,22 +172,6 @@ We strongly suggest you to use sshuttle, and to modify your local
 ``/etc/hosts`` file to easily access the OpenStack VMs using the
 names.
 
-**FIXME: run sshuttle with the proper options**
-Since we are using DHCP for both openstack-{priv,public} network,
-you should configure the ``/etc/hosts`` file on all of your virtual 
-machines in order to be able to connect to them using only the hostname.
-
-After you started all of your virtual machines, you could do something like::
-
-     FIXME: to be done over sshuttle?
-     user@ubuntu:~$ IPS=$(nova list --fields name,networks | grep openstack-priv|sed 's/.*openstack-priv=\(192.168.[0-9]\+\.[0-9]\+\).*/\1/g')
-     user@ubuntu:~$ for ip in $IPS; do echo "$ip $(ssh  root@${ip} hostname).example.org" >> /tmp/hosts; done
-     user@ubuntu:~$ for ip in $IPS; do priv=$(ssh root@$ip 'ifconfig eth1 | grep "inet addr" | sed "s/.*addr:\(10.0.0.[0-9]\+\).*/\1/g"'); host=$(ssh root@$ip hostname); echo "$priv $host" >> /tmp/hosts; done
-
-Then, add this file to ``/etc/hosts`` on all the machines::
-
-    user@ubuntu:~$ for ip in $IPS; do cat /tmp/hosts | ssh root@$ip 'cat >> /etc/hosts'; done
-
 
 Configuring Neutron networks
 ++++++++++++++++++++++++++++
@@ -507,7 +491,7 @@ installation::
 
 Now we can start all the other VMs::
 
-    user@ubuntu:~$ for node in {db,auth,image,volume,compute}-node hypervisor-{1,2};
+    user@ubuntu:~$ for node in {db,auth,image,volume,compute}-node;
       do nova boot --key-name antonio \
       --image ubuntu-trusty \
       --flavor m1.small \
@@ -525,6 +509,20 @@ interface we have to start it seprately using the following command::
       --nic net-id=$(neutron net-show -c id -f value openstack-public) \
       network-node
 
+
+Hypervisors will need a bigger disks, so let's use a flavor
+`m1.large1` instead::
+
+    user@ubuntu:~$ nova boot --key-name antonio \
+      --image ubuntu-trusty \
+      --flavor m1.small \
+      --nic net-id=$(neutron net-show -c id -f value openstack-priv) \
+      hypervisor-1
+      done
+
+.. FIXME: We start only one hypervisor because I don't know if we have
+.. enough resources on the physical nodes, since we need to use a
+.. bigger flavor if we ever are able to start an ubuntu machine.
 .. FIXME: doesn't it mess up with the routing of the network node? To check
 
 Access the Virtual Machines
