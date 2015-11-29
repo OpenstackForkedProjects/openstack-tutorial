@@ -912,7 +912,7 @@ idea to
 
 ::
 
-    user@ubuntu:$ for node in {db,auth,image,compute,volume,neutron}-node hypervisor-1; do
+    user@ubuntu:$ for node in {db,auth,image,compute,volume,network}-node hypervisor-1; do
     ssh root@$node 'apt-get install -y software-properties-common;
        add-apt-repository -y cloud-archive:liberty;
        apt-get update -y;
