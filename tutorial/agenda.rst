@@ -10,6 +10,7 @@ Tuesday 2/12/2015
 * :ref:`lab-exercise-1`
 * :doc:`cli_interface`
 * :ref:`lab-exercise-2`
+* short intro to Python APIs
 
   .. * real world use cases
   ..   - gc3pie (try it?)
@@ -20,8 +21,10 @@ Wednesday 3/12/2015
 -------------------
 
 * OpenStack architecture |openstack|
+* Preparation of the environment
 * Installation of basic services:
-  - mariadb sql
+
+  - mariadb
   - rabbitmq
   - keystone
 
@@ -41,7 +44,7 @@ Friday 5/12/2015
 * hypervisors
 * troubleshooting
 * bonus topics (depending on available time and interest)
-  - Python APIs
+
   - HA
   - swift
 
