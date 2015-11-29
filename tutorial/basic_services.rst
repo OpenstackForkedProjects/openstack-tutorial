@@ -44,13 +44,17 @@ one, since the MariaDB server will be accessible also via internet. You
 can use the `pwgen` command to generate random passwords with
 reasonable entropy.
 
+While configuring the various services in the next sections we used
+``openstack`` as a password. For simplicity and to facilitate the 
+debugging sessions you may also want to use that password. 
+
 For security reasons the MariaDB daemon listens on localhost only,
 port 3306. This has to be changed in order to make the server
 accessible from all the OpenStack services. Edit the
 ``/etc/mysql/my.cnf`` file and ensure that it contains the following
 line::
 
-    bind-address            = <IP_OF_THE_DB_NODE_VM> 
+    bind-address            = <IP_OF_THE_DB_NODE> 
 
 .. Of course, in this particular case the db-node is only accessible from
 .. within the private, isolated network `openstack-priv`, so the security
@@ -174,6 +178,7 @@ and then grant write permissions to /::
 By default RabbitMQ listens on port 5672, on all the available interfaces::
 
     root@db-node:~# netstat -tnlp | grep 5672
+    tcp        0      0 0.0.0.0:25672           0.0.0.0:*               LISTEN      6699/beam
     tcp6       0      0 :::5672                 :::*                    LISTEN      27903/beam      
 
 In order to prevent this, create (or modify, if it's already there)
@@ -188,8 +193,8 @@ Whenever you update this file, restart the daemon::
 
 and check again::
 
-    root@db-node:~# netstat -tnlp | grep 5672
-    tcp        0      0 <IP_OF_THE_DB_NODE_VM>:5672           0.0.0.0:*               LISTEN      28661/beam      
+    tcp        0      0 192.168.1.5:5672        0.0.0.0:*               LISTEN      7495/beam       
+    tcp        0      0 0.0.0.0:25672           0.0.0.0:*               LISTEN      7495/beam 
 
 Now we will proceed with the other services, but since most of the
 services need to create a MariaDB account and database, you probably
