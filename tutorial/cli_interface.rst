@@ -26,7 +26,7 @@ a virtualenv can be created with::
     Also creating executable in cscs2015/bin/python
     Installing setuptools, pip...done.
 
-This will create a directory `cscs2-15` where everything will be
+This will create a directory `cscs2015` where everything will be
 installed. To uninstall the virtaulenv, just wipe out this directory.
 
 Activate the virtual environment
@@ -74,6 +74,10 @@ install the following packages:
 * python-cinderclient
 * python-neutronclient
 
+Please ensure you have ``python-dev`` (on Debian) or ``python-devel`` 
+(on RedHat) installed on your laptop otherwise you may incurr into errors
+during the next steps.
+
 To install a package just run `pip install <package-name>` with the
 virtualenv already loaded::
 
@@ -85,7 +89,6 @@ virtualenv already loaded::
 
 Brief list of commands we will use
 ----------------------------------
-
 
 * openstack catalog list
 * openstack flavor list
