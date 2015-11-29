@@ -65,8 +65,8 @@ and its endpoints::
 
     user@ubuntu:~$ openstack endpoint create compute \
       --region RegionOne \
-      --publicurl 'http://130.60.24.120:8774/v2/%(tenant_id)s' \
-      --adminurl 'http://130.60.24.120:8774/v2/%(tenant_id)s' \
+      --publicurl 'http://<PUBLIC_IP_BASTION>:8774/v2/%(tenant_id)s' \
+      --adminurl 'http://<PUBLIC_IP_BASTION>:8774/v2/%(tenant_id)s' \
       --internalurl 'http://compute-node:8774/v2/%(tenant_id)s'
     +--------------+--------------------------------------------+
     | Field        | Value                                      |
@@ -145,7 +145,7 @@ Finally, a few options related to vnc display need to be changed in
    novnc_enabled=true
    vncserver_listen = <IP_OF_THE_COMPUTE_NODE> 
    vncserver_proxyclient_address = <IP_OF_THE_COMPUTE_NODE> 
-   novncproxy_base_url = http://<FLOATING_IP_OF_BASTION>:6080/vnc_auto.html
+   novncproxy_base_url = http://<PUBLIC_IP_BASTION>:6080/vnc_auto.html
 
 Also, since we want to contact the glance server using the management
 network, we will also update option ``glance_api_servers``::
@@ -255,10 +255,9 @@ Restart all the nova services::
     | 4  | nova-cert        | compute-node | internal | enabled | up    | 2015-11-28T18:19:46.000000 | -               |
     +----+------------------+--------------+----------+---------+-------+----------------------------+-----------------+
 
-From the **compute-node** you could also run ``nova-manage service
-list`` that gives you a similar output. The main difference is that
-``nova-manage`` does not access the nova API, so it needs to have
-direct access to the database. On the other hands, it works also if
+From the **compute-node** you could also run ``nova-manage service list`` that gives you
+a similar output. The main difference is that ``nova-manage`` does not access the nova API,
+so it needs to have direct access to the database. On the other hands, it works also if
 the API do not, for some reason.
 
 
@@ -266,24 +265,9 @@ testing
 -------
 
 So far we cannot run an instance yet, but we can check if nova is able to talk to the services already installed.
-As usual, you can set the environment variables to use the ``nova`` command line without having to specify the 
-credentials via command line options::
+As usual from your laptop using the **inner-cloud** credentials you can check the status of the nova service::
 
-    root@compute-node:~# export OS_PROJECT_DOMAIN_ID=default
-    root@compute-node:~# export OS_USER_DOMAIN_ID=default
-    root@compute-node:~# export OS_PROJECT_NAME=admin
-    root@compute-node:~# export OS_TENANT_NAME=admin
-    root@compute-node:~# export OS_USERNAME=admin
-    root@compute-node:~# export OS_PASSWORD=openstack
-    root@compute-node:~# export OS_AUTH_URL=http://auth-node.example.org:35357/v3
-    root@compute-node:~# export OS_IDENTITY_API_VERSION=3
-
-You may want to save those variables in a file and source it next time you need to perform administrative
-operations on the compute node.
-
-you can check the status of the nova service::
-
-    root@compute-node:~# nova service-list
+    user@ubuntu:~$ nova service-list
     +----+------------------+--------------+----------+---------+-------+----------------------------+-----------------+
     | Id | Binary           | Host         | Zone     | Status  | State | Updated_at                 | Disabled Reason |
     +----+------------------+--------------+----------+---------+-------+----------------------------+-----------------+
@@ -295,7 +279,7 @@ you can check the status of the nova service::
 
 but you can also work with glance images::
 
-    root@compute-node:~# nova image-list
+    user@ubuntu:~$ nova image-list
     +--------------------------------------+--------------+--------+--------+
     | ID                                   | Name         | Status | Server |
     +--------------------------------------+--------------+--------+--------+
@@ -341,16 +325,13 @@ On the **compute-node**::
 
     root@compute-node:# apt-get install openstack-dashboard
 
-Edit the file ``/etc/openstack-dashboard/local_settings.py`` and
-update the ``OPENSTACK_HOST`` variable::
+Edit the file ``/etc/openstack-dashboard/local_settings.py`` and update the ``OPENSTACK_HOST`` variable::
 
-    OPENSTACK_HOST = "auth-node.example.org"
+    OPENSTACK_HOST = "auth-node"
 
 Now, you should be able to connect to the compute-node node by opening the
-URL ``http://<IP_OF_THE_COMPUTE_NODE>/horizon`` 
+URL ``http://<PUBLIC_IP_BASTION>/horizon`` 
 (replace with the ip in openstack-priv of your compute-node) on your web browser
-
-Is it working? If not why?
 
 ..
    Keystone is then checking on what the users/tenants are "supposed" to
