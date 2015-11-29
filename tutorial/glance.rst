@@ -77,9 +77,9 @@ client you install on your node is a bit newer than the one installed
 via debian, so the syntax is a bit different::
 
     user@ubuntu:~# openstack endpoint create --region RegionOne \
-      image --publicurl http://130.60.24.120:9292 \
+      image --publicurl http://<PUBLIC_IP_OF_BASTION>:9292 \
       --internalurl http://image-node:9292 \
-      --adminurl http://130.60.24.120:9292
+      --adminurl http://<PUBLIC_IP_OF_BASTION>:9292
     +--------------+----------------------------------+
     | Field        | Value                            |
     +--------------+----------------------------------+
@@ -92,7 +92,6 @@ via debian, so the syntax is a bit different::
     | service_name | glance                           |
     | service_type | image                            |
     +--------------+----------------------------------+
-
 
 installation and configuration
 ------------------------------
@@ -199,12 +198,10 @@ Now we are ready to restart the glance services::
 From your laptop you should now be able to access glance::
 
     user@ubuntu:~$ glance image-list
-    +----+------+
-    | ID | Name |
-    +----+------+
-    +----+------+
-
-
+    +----+------+-------------+------------------+------+--------+
+    | ID | Name | Disk Format | Container Format | Size | Status |
+    +----+------+-------------+------------------+------+--------+
+    +----+------+-------------+------------------+------+--------+
 
 Testing
 -------
@@ -227,6 +224,7 @@ The command line tool to manage images is ``glance``. Uploading an image is easy
      --visibility public \
      --container-format bare \
      --disk-format qcow2 \
+     --progress \
      --file cirros-0.3.3-x86_64-disk.img
    +------------------+--------------------------------------+
    | Property         | Value                                |
