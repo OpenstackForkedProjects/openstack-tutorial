@@ -303,7 +303,7 @@ but you can also work with glance images::
     +--------------------------------------+--------------+--------+--------+
 
 ..
-nova volume-* commands seem to be deprecates::
+    nova volume-* commands seem to be deprecates::
 
     root@compute-node:~# nova volume-create --display-name test2 1
     +---------------------+--------------------------------------+

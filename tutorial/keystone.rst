@@ -190,7 +190,7 @@ Keystone by default listens to two different ports::
 .. As you can see apache2 is listening using only over tcp6, in order to
 .. fix this you have to disable ipv6 in ``/etc/sysctl.conf`` by adding
 .. the line: ``net.ipv6.conf.all.disable_ipv6 = 1`` and load the
-.. changes::
+.. changes
 
 
 ..     root@auth-node:~# sysctl -p
@@ -253,14 +253,11 @@ Creation of the admin user
 In order to work with keystone we have to create an admin user and
 a few basic projects and roles.
 
-We will start by creating keystone service entry and API endpoints::
-
-
-projects: **admin** and **service**. The first
-one is used for the admin user, while the second one is used for the
-users we will create for the various services (image, volume, nova
-etc...). The following commands will work assuming you already set the
-correct environment variables::
+We will start by creating two keystone projects: **admin** and
+**service**. The first one is used for the admin user, while the
+second one is used for the users we will create for the various
+services (image, volume, nova etc...). The following commands will
+work assuming you already set the correct environment variables::
 
     root@auth-node:~# openstack project create --domain default --description "Admin Project" admin 
     +-------------+----------------------------------+

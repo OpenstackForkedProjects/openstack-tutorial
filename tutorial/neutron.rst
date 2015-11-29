@@ -217,7 +217,7 @@ service and the `metadata-agent`::
     metadata_proxy_shared_secret = d1a6195d-5912-4ef9-b01f-426603d56bd2
 
 The `metadata_proxy_shared_secret` must be the same string you put
-in ``nova.conf``, option ``[neutron/metadata_proxy_shared_secret.
+in ``nova.conf``, option ``[neutron/metadata_proxy_shared_secret]``.
 
 
 

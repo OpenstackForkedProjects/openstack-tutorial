@@ -710,16 +710,16 @@ Hypervisors, however, also need ports starting from 5900 if you plan to use the 
 
 ..     iptables -t nat -A PREROUTING -p tcp -m multiport -d <IP_OF_BASTION_ON_PUBLIC_NETWORK> --dport 8773,8774,8775,6080,80 -j DNAT --to-destination 192.168.1.9
 
-.. cinder::
+.. cinder:
 
 ..     iptables -t nat -A PREROUTING -p tcp  --dport 8776 -d <IP_OF_BASTION_ON_PUBLIC_NETWORK> -j DNAT --to-destination 192.168.1.8
 
-.. glance::
+.. glance:
 
 ..     iptables -t nat -A PREROUTING -p tcp -m multiport -d <IP_OF_BASTION_ON_PUBLIC_NETWORK> --dport 9191,9292 -j DNAT --to-destination 192.168.1.7
 
 
-.. neutron::
+.. neutron:
 
 ..     iptables -t nat -A PREROUTING -p tcp -d <IP_OF_BASTION_ON_PUBLIC_NETWORK> --dport 9696 -j DNAT --to-destination 192.168.1.12
 
