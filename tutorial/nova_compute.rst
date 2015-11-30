@@ -308,8 +308,10 @@ You should also see the openvswitch agent from the output of `neutron agent-list
 Testing OpenStack
 -----------------
 
-We will test OpenStack first from **your latop** using the command
-line interface.
+We will test OpenStack first from **your latop** using the command line interface.
+
+Creating a keypair
+++++++++++++++++++
 
 The first thing we need to do is to upload the public key of your 
 keypair on the OpenStack so that we can connect to the instance::
@@ -324,6 +326,9 @@ you can check that the keypair has been created with::
     +---------------+-------------------------------------------------+
     | cscs-tutorial | 46:12:e1:e1:95:e4:52:94:22:d9:a8:c0:f3:38:11:30 |
     +---------------+-------------------------------------------------+
+
+Images, flavours, security groups
++++++++++++++++++++++++++++++++++
 
 Let's get the ID of the available images, flavors and security groups::
 
@@ -361,8 +366,8 @@ Let's get the ID of the available images, flavors and security groups::
     |             |           |         |          | default      |
     +-------------+-----------+---------+----------+--------------+
 
-As you can see no traffic is allowed to the VM by default so we have to add at least the possibility
-to ping and ssh the host:: 
+As you can see no traffic is allowed to the VM by default so we have to add at least the
+possibility to ping and ssh the host:: 
 
     user@ubuntu:~$ nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
     +-------------+-----------+---------+-----------+--------------+
@@ -378,6 +383,12 @@ to ping and ssh the host::
     | tcp         | 22        | 22      | 0.0.0.0/0 |              |
     +-------------+-----------+---------+-----------+--------------+
 
+Starting an instance
+++++++++++++++++++++
+
+Now we are ready to start our first instance. We have to specify the network
+the VM is going to use, so list the available networks first::
+
     user@ubuntu:~$ neutron net-list
     +--------------------------------------+----------+---------------------------------------------------+
     | id                                   | name     | subnets                                           |
@@ -386,7 +397,7 @@ to ping and ssh the host::
     | 4e733f65-3c10-4d2a-ad5b-dd73a3323dc5 | ext-net  | e4920247-3215-4593-9cf9-5670f6ed6363 10.0.0.0/24  |
     +--------------------------------------+----------+---------------------------------------------------+
 
-Now we are ready to start our first instance (please note are using the demo-net)::
+Boot the instance then (using the net-id of the ``demo-net``)::
 
     user@ubuntu:~$ nova boot --image cirros-0.3.3 --security-group default \
     --flavor m1.tiny --key_name cscs-tutorial --nic net-id=1116bfff-55e4-4b8d-bd6d-37e7d2eb26ae server-1
@@ -432,6 +443,9 @@ This command returns immediately::
     +--------------------------------------+----------+--------+------------+-------------+--------------------------------+
     | ead1e0f2-03c3-42bf-8128-7699d99e2225 | server-1 | ACTIVE | -          | Running     | demo-net=10.99.0.5             |
     +--------------------------------------+----------+--------+------------+-------------+--------------------------------+
+
+Assocsiating a floating IP
+++++++++++++++++++++++++++
 
 Next step is create and associate a floating IP to the instance so that we can connect from the laptops (over sshuttle)::
 
