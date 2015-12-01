@@ -28,24 +28,24 @@
   S$^3$IT - Services and Support for Science IT,
   University of Zurich
 }
-\date{2~September~2014}
+\date{2~December~2015}
 
 %% Makes the title slide
 \maketitle
 
-\begin{frame}
-  {What is OpenStack}
+% \begin{frame}
+%   {What is OpenStack}
 
-  \begin{quote}
-    OpenStack is a cloud operating system that controls large pools of
-    compute, storage, and networking resources throughout a
-    datacenter, all managed through a dashboard that gives
-    administrators control while empowering their users to provision
-    resources through a web interface.
+%   \begin{quote}
+%     OpenStack is a cloud operating system that controls large pools of
+%     compute, storage, and networking resources throughout a
+%     datacenter, all managed through a dashboard that gives
+%     administrators control while empowering their users to provision
+%     resources through a web interface.
 
-    \hfill{\em \url{www.openstack.org}}
-  \end{quote}
-\end{frame}
+%     \hfill{\em \url{www.openstack.org}}
+%   \end{quote}
+% \end{frame}
 % \begin{frame}[fragile]
 %   {Cattle vs. pets}
 
@@ -79,56 +79,56 @@
 %   % \tiny Rif: \url{http://www.slideshare.net/gmccance/cern-data-centre-evolution}
 % \end{frame}
 
-\begin{frame}
-  {OpenStack vs. rest of the (virtualization) world}
-  What's different from KVM/VMWare/Virtualbox?
+% \begin{frame}
+%   {OpenStack vs. rest of the (virtualization) world}
+%   What's different from KVM/VMWare/Virtualbox?
 
-  \begin{itemize}
-    \pause
-  \item specs of the VMs are choosen form a list of predefined
-    \textbf{flavors} that define:
-    \begin{itemize}
-    \item Nr. of CPUs
-    \item amount of RAM
-    \item size disk
-    \end{itemize}
+%   \begin{itemize}
+%     \pause
+%   \item specs of the VMs are choosen form a list of predefined
+%     \textbf{flavors} that define:
+%     \begin{itemize}
+%     \item Nr. of CPUs
+%     \item amount of RAM
+%     \item size disk
+%     \end{itemize}
 
-    \pause
-  \item complex network setup are possible
+%     \pause
+%   \item complex network setup are possible
 
-    \pause
-  \item OS already installed (but adapted automatically to the current
-    instance)
+%     \pause
+%   \item OS already installed (but adapted automatically to the current
+%     instance)
 
-    \pause
-  \item multiple options for storage (volumes and object storage)
+%     \pause
+%   \item multiple options for storage (volumes and object storage)
 
-    \pause
-  \item VMs are spawned on possibly thousends of nodes
+%     \pause
+%   \item VMs are spawned on possibly thousends of nodes
 
-  \end{itemize}
+%   \end{itemize}
 
-\pause\scriptsize
-    yes, it's a \textit{clone} of Amazon
-\end{frame}
+% \pause\scriptsize
+%     yes, it's a \textit{clone} of Amazon
+% \end{frame}
 
-\begin{frame}
-  {Above all}
+% \begin{frame}
+%   {Above all}
 
-  creation is done via Web GUI, CLI or \textbf{network APIs}
+%   creation is done via Web GUI, CLI or \textbf{network APIs}
 
-  $\Rightarrow$ it can be \textit{scripted}
+%   $\Rightarrow$ it can be \textit{scripted}
 
-  \+
-  \pause
-  You just have to setup the cloud.
+%   \+
+%   \pause
+%   You just have to setup the cloud.
 
-  \+
-  Actual provisioning of the VMs can be delegated \textbf{to
-    the user}
+%   \+
+%   Actual provisioning of the VMs can be delegated \textbf{to
+%     the user}
 
 
-\end{frame}
+% \end{frame}
 
 \begin{frame}
   {OpenStack Architecture}
@@ -190,6 +190,28 @@
     \textit{roles})
   \item Holds a catalog of available services and their endpoints.
   \item Can use different backends (SQL database, LDAP)
+  \item Supports concept of \textit{domains} and Federation
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}
+  {keystone \& AAA}
+
+  \begin{itemize}
+  \item An \textbf{User} authenticates against Keystone with login and
+    password and gets a \textbf{token}
+  \item API nodes accepts the token and check its validity with
+    \textbf{keystone}
+  \item Every API service has a \texttt{policy.json} file to define
+    the authorization
+  \item \textbf{Project/tenant} (group of \textit{trusted} users)
+  \item \textbf{Role}: mapping between an user and a project
+    \begin{itemize}
+    \item \textbf{admin} is the \textit{Cloud} administrator
+    \item \textbf{\_member\_} is a \textit{regular} member
+    \item others can be created (need to customize \texttt{policy.json})
+    \end{itemize}
   \end{itemize}
 \end{frame}
 
@@ -207,6 +229,18 @@
   \item[nova-scheduler] decides where to start an instance
   \item[nova-compute] running on each compute node, interacts with the
     hypervisor and actually starts the vm.
+  \end{description}
+\end{frame}
+
+\begin{frame}
+  {nova - less known services}
+  \begin{description}
+  \item[nova-conductor] RPC server for nova: basically a proxy for the
+    SQL database.
+  \item[nova-novncproxy] provides http access to the VNC console
+  \item[nova-consoleauth] manages tokens used to authenticate to the
+    vnc console
+  \item[nova-cert] only needed for EC2 APIC
   \end{description}
 \end{frame}
 
@@ -253,6 +287,11 @@
     DNS as a service)
   \item Integrates with network devices (Cisco, Brocade\ldots)
   \end{itemize}
+
+  \begin{description}
+  \item[glance-api] main API service
+  \item[glance-registry] v1.0 metadata api
+  \end{description}
 \end{frame}
 
 
@@ -279,6 +318,8 @@
     many of these.
   \item[cinder-scheduler] Decides which cinder-volume has to provide
     the volume for an instance.
+  \item[cinder-backup] optinal service to raw copy a volume to a
+    different location (e.g. Swift or Tivoli)
   \end{description}
 \end{frame}
 
@@ -289,14 +330,21 @@
     \column{2cm}
     \includegraphics[width=2cm]{openstack-object-storage-icon.png}
     \column{8cm}
-    Object storage distributed service.
+    Distributed Object Storage service
+    
+    (\textit{not covered in this worhsop})
   \end{columns}
   
   \+\+
   \begin{itemize}
   \item Redundant, scalable object storage on commodity hardware.
   \item Not a POSIX filesystem.
-  \item Scales horizontally simply by adding new servers.
+  \item Scales horizontally
+  \item Data locality
+  \item Multi region, georeplication
+  \item (very simple architecture!)
+  \item \textbf{AP} in the
+    \href{https://en.wikipedia.org/wiki/CAP_theorem}{CAP Theorem}
   \end{itemize}
 
   \+ It's not the only choice: \textbf{Ceph}, \textbf{GlusterFS} and
