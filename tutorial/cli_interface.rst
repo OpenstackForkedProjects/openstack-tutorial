@@ -132,7 +132,7 @@ Create a file on your laptop with the following values (update values
 for tenant/project name and username)::
 
     export OS_USERNAME=<USER_ASSIGNED_TO_YOU>
-    export OS_PASSWORD=S3IT0212
+    export OS_PASSWORD=<THE_PASSWORD_YOU_SET>
     export OS_AUTH_URL=http://130.60.24.173:35357/v3
     export OS_TENANT_NAME=<PROJECT_ASSIGNED_TO_YOU>
     export OS_PROJECT_NAME=<PROJECT_ASSIGNED_TO_YOU>
