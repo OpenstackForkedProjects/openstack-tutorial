@@ -2,7 +2,7 @@
 Workshop agenda
 ---------------
 
-Tuesday 2/12/2015
+Tuesday 1/12/2015
 -----------------
 
 * Why a cloud? |why_a_cloud|
@@ -17,7 +17,7 @@ Tuesday 2/12/2015
   ..   - elasticluster (try it?)
   .. * intro to the api?
   
-Wednesday 3/12/2015
+Wednesday 1/12/2015
 -------------------
 
 * OpenStack architecture |openstack|
@@ -29,7 +29,7 @@ Wednesday 3/12/2015
   - keystone
 
 
-Thursday 4/12/2015
+Thursday 3/12/2015
 ------------------
 
 * glance
@@ -37,7 +37,7 @@ Thursday 4/12/2015
 * cinder
 * horizon
 
-Friday 5/12/2015
+Friday 4/12/2015
 ----------------
 
 * networking with neutron |neutron|
