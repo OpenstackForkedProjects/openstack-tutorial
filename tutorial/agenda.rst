@@ -17,7 +17,7 @@ Tuesday 1/12/2015
   ..   - elasticluster (try it?)
   .. * intro to the api?
   
-Wednesday 1/12/2015
+Wednesday 2/12/2015
 -------------------
 
 * OpenStack architecture |openstack|
