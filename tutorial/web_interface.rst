@@ -7,7 +7,7 @@ interface of OpenStack (called: Horizon)
 
 What we will do:
 
-* login on http://cscs2015.s3it.uzh.ch
+* login on http://cscs2015.s3it.uzh.ch/horizon
 * import a keypair
 * look around :)
 * crete the basic networking
