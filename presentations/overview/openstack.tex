@@ -245,6 +245,27 @@
 \end{frame}
 
 \begin{frame}
+  {nova - notes on scheduling}
+
+  \begin{itemize}
+  \item \textit{``FIFO''} scheduler with filters and weight
+  \item can take decisions based on
+    \begin{itemize}
+    \item available cpus/ram/disk
+    \item availability zones
+    \item image properties
+    \item hypervisor capabilities
+    \item aggregate metadata
+    \item iops
+    \end{itemize}
+  \item Can take \textit{hints} from the client
+  \item Manage resource oversubscription
+  \item \textit{scheduling} problems can be hard to debug (\texttt{No valid host was
+      found})
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
   {glance - image service}
   \begin{columns}
     \column{2cm}
@@ -261,6 +282,10 @@
   \item Images can be stored on \textbf{different backends} (RDB, S3,
     Swift, filesystem)
   \end{itemize}
+  \begin{description}
+  \item[glance-api] main API service
+  \item[glance-registry] v1.0 metadata api
+  \end{description}
 \end{frame}
 
 
@@ -288,10 +313,6 @@
   \item Integrates with network devices (Cisco, Brocade\ldots)
   \end{itemize}
 
-  \begin{description}
-  \item[glance-api] main API service
-  \item[glance-registry] v1.0 metadata api
-  \end{description}
 \end{frame}
 
 
@@ -406,8 +427,9 @@
     }{}
 
 \item \alt<6>{\HL{\textbf{nova-compute} contacts \textbf{cinder}} to
-      provision the volume} (if requested)
-  {\textbf{nova-compute} contacts \textbf{cinder} to provision the volume}
+      provision the volume}
+  {\textbf{nova-compute} contacts \textbf{cinder} to provision the
+    volume} (if needed)
 
   \alt<6>{
     \begin{enumerate}
@@ -423,7 +445,6 @@
   \alt<7>{
     \begin{enumerate}
     \item allocates a valid private ip
-    \item if requested, it allocates a floating ip
     \item configures the host as needed (dnsmasq, iptables,
       Open VSwitch\ldots)
     \item updates the request status
