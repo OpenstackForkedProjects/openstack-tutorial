@@ -367,7 +367,12 @@ Assume this is the output of ``nova net-list``::
 
 we will start our bastion host with::
 
-    user@ubuntu:~$ nova boot --key-name <YOUR_KEYPAIR_NAME> --image ubuntu-trusty --nic net-id=9a4ce8c1-950c-4432-86ef-a8ba4a9d0e28 --nic net-id=dad2ca78-380e-48aa-8454-1218feb47947 --flavor m1.small bastion
+    user@ubuntu:~$ nova boot --key-name <YOUR_KEYPAIR_NAME> \
+      --image ubuntu-trusty \
+      --nic net-id=9a4ce8c1-950c-4432-86ef-a8ba4a9d0e28 \
+      --nic net-id=dad2ca78-380e-48aa-8454-1218feb47947 \
+      --flavor m1.small \
+      bastion
     +--------------------------------------+------------------------------------------------------+
     | Property                             | Value                                                |
     +--------------------------------------+------------------------------------------------------+
@@ -674,7 +679,9 @@ to use the `nova` command::
     | status                | ACTIVE                                                                          |
     | tenant_id             | 648477bbdd0747bfa07497194f20aac3                                                |
     +-----------------------+---------------------------------------------------------------------------------+
-    user@ubuntu:~$  neutron port-update 38d19638-dfdf-4ec8-b147-94ee13fe8477 --security-group 640d2c0a-3e89-404e-9875-1e7bbac1c9f1 --security-group 1eedbc48-f197-4886-8226-554c7ade4f78
+    user@ubuntu:~$  neutron port-update 38d19638-dfdf-4ec8-b147-94ee13fe8477 \
+    --security-group 640d2c0a-3e89-404e-9875-1e7bbac1c9f1 \
+    --security-group 1eedbc48-f197-4886-8226-554c7ade4f78 \
     Updated port: 38d19638-dfdf-4ec8-b147-94ee13fe8477
 
 .. NOTE: Actually, openstack server add security group works, but
@@ -684,7 +691,10 @@ Of course, we need to open also the other hosts. It would be better to
 create a security group per group of services, but we are lazy so we
 will associate the `openstack` security group to all service nodes::
 
-    user@ubuntu:~$ for node in {auth,image,volume,compute,network}-node; do openstack server add security group $node openstack; done
+    user@ubuntu:~$ for node in {auth,image,volume,compute,network}-node
+      do \
+      openstack server add security group $node openstack
+    done
 
 Hypervisors, however, also need ports starting from 5900 if you plan to use the vnc console::
 
