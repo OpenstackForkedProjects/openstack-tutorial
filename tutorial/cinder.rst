@@ -214,7 +214,7 @@ sure you are using the openstack credential of the **outer** cloud :))::
 Let's now go back to the  **volume-node** and install the cinder
 packages::
 
-    root@volume-node:~# apt-get install cinder-api cinder-scheduler cinder-volume python-mysqldb  lvm2 
+    root@volume-node:~# apt-get install cinder-api cinder-scheduler cinder-volume open-iscsi lvm2 
 
 We will configure cinder in order to create volumes using LVM, but in
 order to do that we have to provide a volume group called
