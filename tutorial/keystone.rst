@@ -508,6 +508,11 @@ to create two files containing the following environment variables::
     export OS_AUTH_URL=http://<PUBLIC_IP_OF_BASTION>:5000/v3
     export OS_IDENTITY_API_VERSION=3
 
+
+
+..  Wierd bwhaviour with OS_IDENTITY_API_VERSION=3 and OS_IDENTITY_API_VERSION=2. With the last one
+    all the endpoints can be created at once with the first one they have to be created one by one.    
+ 
 So that you can load them whenever you need to with::
 
     root@any-host:~# . ~/admin.sh 
