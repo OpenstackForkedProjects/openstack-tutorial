@@ -133,7 +133,7 @@ and change as follows in the ``[DEFAULT] section``::
 Note that by default RabbitMQ is not used by glance, because there
 isn't much communication between glance and other services that cannot
 pass through the public API. However, if you define this and set the
-``notification_driver`` option to ``rabbit``, you can receive
+``notification_driver`` option to ``messaging``, you can receive
 notifications for image creation/deletion.
 
 Also, we need to adjust the ``[keystone_authtoken]`` section so that
