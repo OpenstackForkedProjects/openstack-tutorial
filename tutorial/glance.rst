@@ -289,8 +289,7 @@ can be found at the `Ubuntu Cloud Images archive
 using glance as we did before.
 
 If you want to get further information about `qcow2` images, you will
-need to install `qemu-utils` package and run `qemu-img info <image
-name`:: 
+need to install `qemu-utils` package and run `qemu-img info <path-to-image>`:: 
 
 
     root@image-node:~# apt-get install -y qemu-utils
