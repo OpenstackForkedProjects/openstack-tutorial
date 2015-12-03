@@ -192,8 +192,8 @@ Like we did with keystone, we need to populate the glance database::
 
 Now we are ready to restart the glance services::
 
-    root@image-node:~# restart glance-api restart
-    root@image-node:~# restart glance-registry restart
+    root@image-node:~# restart glance-api
+    root@image-node:~# restart glance-registry
 
 From your laptop you should now be able to access glance::
 
