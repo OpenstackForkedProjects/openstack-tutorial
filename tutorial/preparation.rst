@@ -858,6 +858,7 @@ IPs might be different::
       option httpchk
       option tcpka
       option tcplog
+      http-check expect status 401
       server image-node 192.168.1.7:9191 check inter 2000 rise 2 fall 5
 
     listen cinder
