@@ -135,8 +135,8 @@ You can just replace the ``/etc/nova/nova.conf`` file with the content displayed
 Check if the ``virt_type`` inside the ``[libvirt]`` of the ``/etc/nova/nova-compute.conf``
 is set to ``kvm``.
 
-neutron on the compute node
----------------------------
+neutron on the hypervisor
+-------------------------
 
 Install the needed components::
 
