@@ -224,7 +224,7 @@ and in OVS plugin configuration
 
     [ovs]
     # ...
-    local_ip = <PRIVATE_IP_OF_COMPUTE_NODE>
+    local_ip = <PRIVATE_IP_OF_THE_HYPERVISOR_NODE>
     tunnel_type = gre
     enable_tunneling = True
     
