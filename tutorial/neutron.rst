@@ -510,13 +510,13 @@ In newtron, a `network` is a L2 network, very much like connecting
 computers and switches using physical cables. On top of it, we create
 one or more `subnet`, L3 network with a range IP assigned to them.
 
-The first network we create is the *external* network, used by the VMs
-of all the tenants to connect to the interned. As usual, you need to
-setup the relevant environment variables (`OS_USERNAME`,
-`OS_PASSWORD`, `OS_TENANT_NAME`, `OS_AUTH_URL`) in order to use the
-`neutron` command::
+The first network we create is the *external* network, used by the VMs of
+all the tenants to connect to the Internet. 
 
-    root@network-node:~# neutron net-create ext-net --router:external \
+Please execute the following commands from your laptop using the credentials 
+of the inner cloud:: 
+
+    user@ubuntu:~$ neutron net-create ext-net --router:external \
          --provider:physical_network public --provider:network_type flat
     Created a new network:
     +---------------------------+--------------------------------------+
@@ -538,27 +538,27 @@ setup the relevant environment variables (`OS_USERNAME`,
 Let's now create the L3 network, using the range of floating IPs we
 decided to use::
 
-     root@network-node:~# neutron subnet-create ext-net --name ext-subnet \
-     --allocation-pool start=10.0.0.100,end=10.0.0.200  --disable-dhcp \
-     --gateway 10.0.0.1  10.0.0.0/24 
-     +-------------------+----------------------------------------------+
-     | Field             | Value                                        |
-     +-------------------+----------------------------------------------+
-     | allocation_pools  | {"start": "10.0.0.100", "end": "10.0.0.200"} |
-     | cidr              | 10.0.0.0/24                                  |
-     | dns_nameservers   |                                              |
-     | enable_dhcp       | False                                        |
-     | gateway_ip        | 10.0.0.1                                     |
-     | host_routes       |                                              |
-     | id                | e50aa1aa-3e9e-4072-8146-bdcd45214b46         |
-     | ip_version        | 4                                            |
-     | ipv6_address_mode |                                              |
-     | ipv6_ra_mode      |                                              |
-     | name              | ext-subnet                                   |
-     | network_id        | 52a86e27-13d3-407f-af35-1560bd6134a4         |
-     | subnetpool_id     |                                              |
-     | tenant_id         | 3aab8a31a7124de690032b398a83db37             |
-     +-------------------+----------------------------------------------+
+    user@ubuntu:~$ neutron subnet-create ext-net --name ext-subnet \
+    --allocation-pool start=10.0.0.100,end=10.0.0.200  --disable-dhcp \
+    --gateway 10.0.0.1  10.0.0.0/24 
+    +-------------------+----------------------------------------------+
+    | Field             | Value                                        |
+    +-------------------+----------------------------------------------+
+    | allocation_pools  | {"start": "10.0.0.100", "end": "10.0.0.200"} |
+    | cidr              | 10.0.0.0/24                                  |
+    | dns_nameservers   |                                              |
+    | enable_dhcp       | False                                        |
+    | gateway_ip        | 10.0.0.1                                     |
+    | host_routes       |                                              |
+    | id                | e50aa1aa-3e9e-4072-8146-bdcd45214b46         |
+    | ip_version        | 4                                            |
+    | ipv6_address_mode |                                              |
+    | ipv6_ra_mode      |                                              |
+    | name              | ext-subnet                                   |
+    | network_id        | 52a86e27-13d3-407f-af35-1560bd6134a4         |
+    | subnetpool_id     |                                              |
+    | tenant_id         | 3aab8a31a7124de690032b398a83db37             |
+    +-------------------+----------------------------------------------+
 
 
 The ``--disable-dhcp`` option is needed because on this network we
@@ -578,7 +578,7 @@ addressing of other networks created by different tenants.
 
 ::
     
-    root@network-node:~# neutron net-create demo-net
+    user@ubuntu:~$ neutron net-create demo-net
     Created a new network:
     +---------------------------+--------------------------------------+
     | Field                     | Value                                |
@@ -595,7 +595,7 @@ addressing of other networks created by different tenants.
     | tenant_id                 | cacb2edc36a343c4b4747b8a8349371a     |
     +---------------------------+--------------------------------------+
     
-    root@network-node:~# neutron subnet-create demo-net --name demo-subnet --gateway 10.99.0.1 10.99.0.0/24
+    user@ubuntu:~$ neutron subnet-create demo-net --name demo-subnet --gateway 10.99.0.1 10.99.0.0/24
     Created a new subnet:
     +------------------+----------------------------------------------+
     | Field            | Value                                        |
@@ -617,7 +617,7 @@ This network is completely isolated, as it has no connection to the
 external network we created before. In order to connect the two, we
 need to create a router::
 
-    root@network-node:~# neutron router-create demo-router
+    user@ubuntu:~$ neutron router-create demo-router
     Created a new router:
     +-----------------------+--------------------------------------+
     | Field                 | Value                                |
@@ -632,12 +632,12 @@ need to create a router::
 
 and connect it to the subnet `demo-subnet`::
 
-    root@network-node:~# neutron router-interface-add demo-router demo-subnet
+    user@ubuntu:~$ neutron router-interface-add demo-router demo-subnet
     Added interface 32ea1402-bb31-4575-8c14-06aea02d3442 to router demo-router.
 
 and to the external network `external-net`::
 
-    root@network-node:~# neutron router-gateway-set demo-router ext-net
+    user@ubuntu:~$ neutron router-gateway-set demo-router ext-net
     Set gateway for router demo-router
 
 On the neutron node, you should see that new ports have been created
@@ -715,7 +715,7 @@ much more complicated...
 
 Now, as you can see::
 
-    root@network-node:~# neutron port-list
+    user@ubuntu:~$ neutron port-list
     +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------+
     | id                                   | name | mac_address       | fixed_ips                                                                         |
     +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------+
@@ -723,7 +723,7 @@ Now, as you can see::
     | 22900d40-8d75-4f46-b91e-11a974611155 |      | fa:16:3e:bd:8e:70 | {"subnet_id": "87b4b32d-f117-4839-860b-0c08a4d1c668", "ip_address": "10.99.0.2"}  |
     | e53e4354-9fc8-427a-81a6-5598df819f5e |      | fa:16:3e:3a:36:81 | {"subnet_id": "3254e750-4da1-4308-a97c-2381268c044c", "ip_address": "10.0.0.100"} |
     +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------+
-    root@network-node:~# neutron subnet-list
+    user@ubuntu:~$ neutron subnet-list
     +--------------------------------------+-------------+--------------+----------------------------------------------+
     | id                                   | name        | cidr         | allocation_pools                             |
     +--------------------------------------+-------------+--------------+----------------------------------------------+
