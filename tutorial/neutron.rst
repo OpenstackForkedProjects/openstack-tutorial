@@ -349,7 +349,7 @@ To update the configuration of the eth0 interface we run::
     > auto eth0
     > iface eth0 inet static
     >   address <IP_OF_NETOWORK_NODE_ON_OPENSTACK_PRIVATE>
-    >   up ip route add 169.254.169.254/32 via <IP_OF_BASTION_HOST_ON_OPENSTACK_PRIVATE> dev eth0
+    >   up ip route add 169.254.169.254/32 via 192.168.1.1 dev eth0
     >   netmask 255.255.255.0
     > EOF
 
