@@ -130,8 +130,6 @@ The minimum information you have to provide in the ``/etc/nova/nova.conf`` file 
     # compute hosts have no public interface. 
     # Lets leave this as an exercise for the students.   
 
-You can just replace the ``/etc/nova/nova.conf`` file with the content displayed above.
-
 Check if the ``virt_type`` inside the ``[libvirt]`` of the ``/etc/nova/nova-compute.conf``
 is set to ``kvm``.
 
