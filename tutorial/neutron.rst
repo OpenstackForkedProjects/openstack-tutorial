@@ -64,7 +64,8 @@ Create Neutron user, service and endpoint::
 ``network-node`` configuration
 ------------------------------
 
-Please login to the network-node and then configure ``eth1.cfg``::
+.. TA: not needed since it is done later 
+   Please login to the network-node and then configure ``eth1.cfg``::
 
     root@network-node:~# cat > /etc/network/interfaces.d/eth1.cfg <<EOF
     > auto eth1
