@@ -217,7 +217,7 @@ the default gateway or the 169.254.169.254 ip address) and asks for
 information about the running instance, including keypairs, root
 password, and/or extra data and programs to run (called `userdata`).
 
-Metadata agent reads ``/etc/neutron/metadata_agent.init``
+Metadata agent reads ``/etc/neutron/metadata_agent.ini``
 configuration file. Ensure the keystone information are correct, and
 create a shared secret that will be shared between the `nova-api`
 service and the `metadata-agent`::
