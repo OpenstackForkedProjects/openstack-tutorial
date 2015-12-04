@@ -360,7 +360,7 @@ Now we update the create a new file for `br-eth1`::
 
     root@network-node:~# cat > /etc/network/interfaces.d/br-eth1.cfg  <<EOF
     > allow-ovs br-eth1
-    > iface br-eth1 inet manual
+    > iface br-eth1 inet static
     >   ovs_type OVSBridge
     >   post-up ovs-vsctl --may-exist add-port br-eth1 eth1
     >   post-up ip link set dev eth1 up
