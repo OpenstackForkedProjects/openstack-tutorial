@@ -1,10 +1,45 @@
-# Advanced tutorial on ScienceCloud
+Advanced tutorial on ScienceCloud
+=================================
 
-Everything else will be done using the command line or the API, and
-will be done using a specific VM with all the sowftare already
-installed as we did for the GC3Pie training (including an
-almost-prepared source script to load the needed credentials for
-ScienceCloud)
+This is a draft handout for an advanced tutorial on ScienceCloud.
+
+The tutorial will cover some of the less known aspects of OpenStack
+and specifically ScienceCloud.
+
+A special ubuntu image will be used for the exercises of the tutorial,
+with the correct software already installed and part of the needed
+environment.
+
+
+Table of Contents
+=================
+
+  * [Advanced tutorial on ScienceCloud](#advanced-tutorial-on-sciencecloud)
+    * [advanced networking - basic concepts](#advanced-networking---basic-concepts)
+      * [networks](#networks)
+      * [subnet](#subnet)
+      * [ports](#ports)
+      * [router](#router)
+      * [floating IPs](#floating-ips)
+      * [dhcp](#dhcp)
+      * [isolated networks](#isolated-networks)
+      * [security groups](#security-groups)
+      * [hosts with multiple interfaces](#hosts-with-multiple-interfaces)
+    * [CLI](#cli)
+      * [boot instance](#boot-instance)
+      * [boot from volume](#boot-from-volume)
+      * [attach volume](#attach-volume)
+      * [boot instance using port-id and reuse existing port](#boot-instance-using-port-id-and-reuse-existing-port)
+      * [security groups](#security-groups-1)
+      * [userdata](#userdata)
+      * [instance snapshot](#instance-snapshot)
+      * [snapshot of a volume](#snapshot-of-a-volume)
+      * [lock an instance](#lock-an-instance)
+      * [shelve an instance](#shelve-an-instance)
+      * [attach/detach an interface to a VM](#attachdetach-an-interface-to-a-vm)
+    * [SWIFT (cli)](#swift-cli)
+    * [Python API (shade)](#python-api-shade)
+
 
 ## advanced networking - basic concepts
 
