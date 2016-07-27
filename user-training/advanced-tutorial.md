@@ -30,7 +30,6 @@ Table of Contents
       * [boot from volume](#boot-from-volume)
       * [attach volume](#attach-volume)
       * [boot instance using port-id and reuse existing port](#boot-instance-using-port-id-and-reuse-existing-port)
-      * [security groups](#security-groups-1)
       * [userdata](#userdata)
       * [instance snapshot](#instance-snapshot)
       * [snapshot of a volume](#snapshot-of-a-volume)
@@ -295,21 +294,114 @@ tab of the ScienceCloud web interface you should see something like:
 
 ### floating IPs
 
-A floating IP is a special "port" on a provider network. When
-you allocate a floating IP this is associated to your tenant and
-never automatically disassociated. You can then associate this
-floating IP to any VMs, assuming the VM is connected to a
-network where the gateway is on the provider network of the
-floating IP. For instance: assume you have:
+A floating IP is a special "port" defined on a provider network. When
+you allocate a floating IP this is associated to your tenant and never
+automatically disassociated. You can then associate this floating IP
+to any VMs, assuming the VM is connected to a network where the
+gateway is on the provider network of the floating IP.
 
-* tenant network NET1 10.0.0.0/24
-* VM1 in tenant network NET1
-* router R1 on tenant network with gateway on uzh-only network
-* floating IP FIP1 allocated from public network
+In our case we already created a private network connected to the
+`uzh-only` network, so we will allocate a floating IP on `uzh-only`
+network:
 
-in this case you cannot associate the floating IP FIP1 to VM1,
-but you can allocate a floating IP FIP2 from uzh-only network
-and associated it to VM1
+    (cloud)(cred:training@sc)anmess@kenny:~$ openstack ip floating  create uzh-only
+    +---------------------+--------------------------------------+
+    | Field               | Value                                |
+    +---------------------+--------------------------------------+
+    | fixed_ip_address    | None                                 |
+    | floating_ip_address | 172.23.54.135                        |
+    | floating_network_id | c86b320c-9542-4032-a951-c8a068894cc2 |
+    | headers             |                                      |
+    | id                  | 0bd4b423-edb0-4197-990f-3fb7fd101ddd |
+    | port_id             | None                                 |
+    | project_id          | 92b952a1b50149a687f6b7c8f54eec4b     |
+    | router_id           | None                                 |
+    | status              | DOWN                                 |
+    +---------------------+--------------------------------------+
+
+Let's now create an instance with an interface on `privnet-1` network:
+
+    (cloud)(cred:training@sc)anmess@kenny:~$ openstack server create --nic net-id=$(openstack network show -c id -f value privnet-1) --key-name antonio --flavor 1cpu-4ram-hpc --image 2b227d15-8f6a-42b0-b744-ede52ebe59f7 --security-group default anto-test
+    +--------------------------------------+--------------------------------------------------------------------------------+
+    | Field                                | Value                                                                          |
+    +--------------------------------------+--------------------------------------------------------------------------------+
+    | OS-DCF:diskConfig                    | MANUAL                                                                         |
+    | OS-EXT-AZ:availability_zone          |                                                                                |
+    | OS-EXT-STS:power_state               | NOSTATE                                                                        |
+    | OS-EXT-STS:task_state                | scheduling                                                                     |
+    | OS-EXT-STS:vm_state                  | building                                                                       |
+    | OS-SRV-USG:launched_at               | None                                                                           |
+    | OS-SRV-USG:terminated_at             | None                                                                           |
+    | accessIPv4                           |                                                                                |
+    | accessIPv6                           |                                                                                |
+    | addresses                            |                                                                                |
+    | adminPass                            | enDTQMdL7GPJ                                                                   |
+    | config_drive                         |                                                                                |
+    | created                              | 2016-07-27T14:48:19Z                                                           |
+    | flavor                               | 1cpu-4ram-hpc (48fdc4c7-c789-4891-a684-2969ef419ada)                           |
+    | hostId                               |                                                                                |
+    | id                                   | 34b0c46e-586a-4eb9-940a-5b23354c6558                                           |
+    | image                                | Ubuntu Server 14.04.04 LTS (2016-05-19) (2b227d15-8f6a-42b0-b744-ede52ebe59f7) |
+    | key_name                             | antonio                                                                        |
+    | name                                 | anto-test                                                                      |
+    | os-extended-volumes:volumes_attached | []                                                                             |
+    | progress                             | 0                                                                              |
+    | project_id                           | 92b952a1b50149a687f6b7c8f54eec4b                                               |
+    | properties                           |                                                                                |
+    | security_groups                      | [{u'name': u'default'}]                                                        |
+    | status                               | BUILD                                                                          |
+    | updated                              | 2016-07-27T14:48:20Z                                                           |
+    | user_id                              | anmess                                                                         |
+    +--------------------------------------+--------------------------------------------------------------------------------+
+
+The instance got a private IP which is not reachable from the UZH network:
+
+    (cloud)(cred:training@sc)anmess@kenny:~$ openstack server list
+    +--------------------------------------+-----------+--------+----------------------+
+    | ID                                   | Name      | Status | Networks             |
+    +--------------------------------------+-----------+--------+----------------------+
+    | 34b0c46e-586a-4eb9-940a-5b23354c6558 | anto-test | ACTIVE | privnet-1=10.11.22.4 |
+    +--------------------------------------+-----------+--------+----------------------+
+
+Let's associate the floating IP we just reserved to the VM:
+
+    (cloud)(cred:training@sc)anmess@kenny:~$ openstack ip floating add 172.23.54.135 anto-test
+    (cloud)(cred:training@sc)anmess@kenny:~$ openstack ip floating list
+    +--------------------------------------+---------------------+------------------+--------------------------------------+
+    | ID                                   | Floating IP Address | Fixed IP Address | Port                                 |
+    +--------------------------------------+---------------------+------------------+--------------------------------------+
+    | 0bd4b423-edb0-4197-990f-3fb7fd101ddd | 172.23.54.135       | 10.11.22.4       | 8cefbb6b-1b99-4735-8126-298a8533bce5 |
+    +--------------------------------------+---------------------+------------------+--------------------------------------+
+    (cloud)(cred:training@sc)anmess@kenny:~$ openstack server list
+    +--------------------------------------+-----------+--------+-------------------------------------+
+    | ID                                   | Name      | Status | Networks                            |
+    +--------------------------------------+-----------+--------+-------------------------------------+
+    | 34b0c46e-586a-4eb9-940a-5b23354c6558 | anto-test | ACTIVE | privnet-1=10.11.22.4, 172.23.54.135 |
+    +--------------------------------------+-----------+--------+-------------------------------------+
+
+The VM is now reachable using the IP 172.23.54.135
+
+If we want, we can disassociate the IP to the VM and associate it to a
+different VM:
+
+    (cloud)(cred:training@sc)anmess@kenny:~$ openstack ip floating remove 172.23.54.135 anto-test
+
+Now the IP is not associated to any VM, and we can re-run `openstack
+ip floating add` again if we want.
+
+    (cloud)(cred:training@sc)anmess@kenny:~$ openstack ip floating list
+    +--------------------------------------+---------------------+------------------+------+
+    | ID                                   | Floating IP Address | Fixed IP Address | Port |
+    +--------------------------------------+---------------------+------------------+------+
+    | 0bd4b423-edb0-4197-990f-3fb7fd101ddd | 172.23.54.135       | None             | None |
+    +--------------------------------------+---------------------+------------------+------+
+
+In case you don't need the IP anymore you can *release* it:
+
+    (cloud)(cred:training@sc)anmess@kenny:~$ openstack ip floating delete 172.23.54.135
+    (cloud)(cred:training@sc)anmess@kenny:~$ openstack ip floating list
+
+
 
 ### dhcp
 
@@ -324,29 +416,6 @@ An isolated network is a network without a gateway. This network
 can only be connected to other tenant networks via router, but
 cannot be used to access a provider network.
 
-### security groups
-
-security groups are group of firewall rules that are associated
-to a port. By default security groups are associated to all the
-interfaces of a VM, but with the CLI you can also associate a
-security group to a single port.
-
-You can dynamically associate or disassociate a security group
-to a VM/port, and you can add or remove rules to/from a security
-group at any time. Changes are applied "immediately" and do not
-require a reboot of the VM
-
-Since these rules are applied to the port *from the outside*,
-they do not rely on any firewall software installed on the VM
-image.
-
-The default security group allow all outgoing traffic from the
-VM and blocks all incoming traffic to the VM. SC default
-security group already has two rules to allow ICMP and SSH
-incoming traffic to the VM, but you can disable it. You can also
-disable outgoing traffic by deleting the corresponding rules
-from the default security group.
-    
 ### hosts with multiple interfaces
 
 You can always create VMs with multiple interfaces. However, most
@@ -741,6 +810,27 @@ To delete a port:
 
 ### security groups
 
+Security groups are group of firewall rules that are associated
+to a port. By default security groups are associated to all the
+interfaces of a VM, but with the CLI you can also associate a
+security group to a single port.
+
+You can dynamically associate or disassociate a security group
+to a VM/port, and you can add or remove rules to/from a security
+group at any time. Changes are applied "immediately" and do not
+require a reboot of the VM
+
+Since these rules are applied to the port *from the outside*,
+they do not rely on any firewall software installed on the VM
+image.
+
+The default security group allow all outgoing traffic from the
+VM and blocks all incoming traffic to the VM. SC default
+security group already has two rules to allow ICMP and SSH
+incoming traffic to the VM, but you can disable it. You can also
+disable outgoing traffic by deleting the corresponding rules
+from the default security group.
+    
 You can create a new security group whenever you want.
 
     (cloud)(cred:training@sc)anmess@kenny:~$ openstack security group list
