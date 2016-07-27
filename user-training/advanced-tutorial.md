@@ -139,6 +139,100 @@ is created automatically, but you can also create a port manually
 and then start a VM (using the cli) specifying which port you
 want to use.
 
+Normally you don't create a port by yourself, as it is created
+automatically when a specific device (router, dhcp, VM) is
+created. However, in some cases can be useful to pre-create the port.
+
+Specifically, you might want to allocate a set of ports on uzh-only
+network in case you need to create a bunch of VMs that need to have
+known IPs. Immagine you periodically need to start VMs that need to
+access a server located somewhere else in the UZH network, and you
+want to set firewall rules on the server to only allow these VMs to
+access, you can only do it if you know in advance the pool of IPs that
+will be used by these VMs. Most of the times you would use floating
+IPs for this, but if you need higher network performance and
+reliability you can pre-create the needed ports instead and start VMs
+using these ports.
+
+To create a port:
+
+    (cloud)(cred:training@sc)anmess@kenny:~$ neutron port-create uzh-only --name vm-1 
+    Created a new port:
+    +-----------------------+-----------------------------------------------------------------------------------------------------------------+
+    | Field                 | Value                                                                                                           |
+    +-----------------------+-----------------------------------------------------------------------------------------------------------------+
+    | admin_state_up        | True                                                                                                            |
+    | allowed_address_pairs |                                                                                                                 |
+    | binding:vnic_type     | normal                                                                                                          |
+    | device_id             |                                                                                                                 |
+    | device_owner          |                                                                                                                 |
+    | dns_assignment        | {"hostname": "host-172-23-54-133", "ip_address": "172.23.54.133", "fqdn": "host-172-23-54-133.openstacklocal."} |
+    | dns_name              |                                                                                                                 |
+    | fixed_ips             | {"subnet_id": "f9702c62-9245-471c-a7d0-0b1130d97d58", "ip_address": "172.23.54.133"}                            |
+    | id                    | e8678555-440b-4fb4-b143-3bd1429941d1                                                                            |
+    | mac_address           | fa:16:3e:f2:df:bc                                                                                               |
+    | name                  | vm-1                                                                                                            |
+    | network_id            | c86b320c-9542-4032-a951-c8a068894cc2                                                                            |
+    | security_groups       | fae6c332-05a6-4345-99b3-f348af1304e6                                                                            |
+    | status                | DOWN                                                                                                            |
+    | tenant_id             | 92b952a1b50149a687f6b7c8f54eec4b                                                                                |
+    +-----------------------+-----------------------------------------------------------------------------------------------------------------+
+
+To start a VM using this specific port, note the uuid of the port and
+then run:
+
+    (cloud)(cred:training@sc)anmess@kenny:~$ openstack server create --nic port-id=e8678555-440b-4fb4-b143-3bd1429941d1 --key-name antonio --flavor 1cpu-4ram-hpc --image 2b227d15-8f6a-42b0-b744-ede52ebe59f7 --security-group default anto-test
+    +--------------------------------------+--------------------------------------------------------------------------------+
+    | Field                                | Value                                                                          |
+    +--------------------------------------+--------------------------------------------------------------------------------+
+    | OS-DCF:diskConfig                    | MANUAL                                                                         |
+    | OS-EXT-AZ:availability_zone          |                                                                                |
+    | OS-EXT-STS:power_state               | NOSTATE                                                                        |
+    | OS-EXT-STS:task_state                | scheduling                                                                     |
+    | OS-EXT-STS:vm_state                  | building                                                                       |
+    | OS-SRV-USG:launched_at               | None                                                                           |
+    | OS-SRV-USG:terminated_at             | None                                                                           |
+    | accessIPv4                           |                                                                                |
+    | accessIPv6                           |                                                                                |
+    | addresses                            |                                                                                |
+    | adminPass                            | MXSX2PggbnzE                                                                   |
+    | config_drive                         |                                                                                |
+    | created                              | 2016-07-27T13:32:32Z                                                           |
+    | flavor                               | 1cpu-4ram-hpc (48fdc4c7-c789-4891-a684-2969ef419ada)                           |
+    | hostId                               |                                                                                |
+    | id                                   | c8a2277d-289b-441e-ba04-970eea3097c1                                           |
+    | image                                | Ubuntu Server 14.04.04 LTS (2016-05-19) (2b227d15-8f6a-42b0-b744-ede52ebe59f7) |
+    | key_name                             | antonio                                                                        |
+    | name                                 | anto-test                                                                      |
+    | os-extended-volumes:volumes_attached | []                                                                             |
+    | progress                             | 0                                                                              |
+    | project_id                           | 92b952a1b50149a687f6b7c8f54eec4b                                               |
+    | properties                           |                                                                                |
+    | security_groups                      | [{u'name': u'default'}]                                                        |
+    | status                               | BUILD                                                                          |
+    | updated                              | 2016-07-27T13:32:32Z                                                           |
+    | user_id                              | anmess                                                                         |
+    +--------------------------------------+--------------------------------------------------------------------------------+
+
+Please note that if you create a new VM starting from a pre-existing
+port, this port will not deleted automatically when the instance is
+deleted, so you have to delete it by yourself:
+
+    (cloud)(cred:training@sc)anmess@kenny:~$ openstack server delete anto-test
+    (cloud)(cred:training@sc)anmess@kenny:~$ openstack server list
+
+    (cloud)(cred:training@sc)anmess@kenny:~$ neutron port-list
+    +--------------------------------------+------+-------------------+--------------------------------------------------------------------------------------+
+    | id                                   | name | mac_address       | fixed_ips                                                                            |
+    +--------------------------------------+------+-------------------+--------------------------------------------------------------------------------------+
+    | 3ee37361-f5fc-4d2b-8b1c-0a6dbd4f5707 |      | fa:16:3e:fd:cd:51 | {"subnet_id": "661449ae-2fd3-4e0a-bc06-b7c312185030", "ip_address": "10.11.22.2"}    |
+    | df731a37-7dc1-42a8-871a-24531ffec1b7 |      | fa:16:3e:9a:f7:0b | {"subnet_id": "661449ae-2fd3-4e0a-bc06-b7c312185030", "ip_address": "10.11.22.3"}    |
+    | e8678555-440b-4fb4-b143-3bd1429941d1 | vm-1 | fa:16:3e:f2:df:bc | {"subnet_id": "f9702c62-9245-471c-a7d0-0b1130d97d58", "ip_address": "172.23.54.133"} |
+    +--------------------------------------+------+-------------------+--------------------------------------------------------------------------------------+
+    (cloud)(cred:training@sc)anmess@kenny:~$ neutron port-delete vm-1
+    Deleted port: vm-1
+
+
 ### router
 
 A router is a virtual router that allows two VMs on two
@@ -157,6 +251,47 @@ the IP of the virtual router. Optionally you can set a floating
 IP: in this case the floating IP "lives" on the router, which
 will provide 1:1 NAT to allow access to the VM from the provider
 network.
+
+Let's recreate the setup shown in Science Cloud documentation
+[Public Access: Floating IP](https://s3itwiki.uzh.ch/display/clouddoc/Networking+options#Networkingoptions-Publicaccess:FloatingIPsetup-floating-ip)
+
+We already have a network `privnet-1` and an associated subnet
+`privsubnet-1`, we only need to create a router and connect it to
+`uzh-only` network and to `privnet-1`.
+
+Create the router:
+
+    (cloud)(cred:training@sc)anmess@kenny:~$ neutron router-create priv-1-to-uzh-only
+    Created a new router:
+    +-----------------------+--------------------------------------+
+    | Field                 | Value                                |
+    +-----------------------+--------------------------------------+
+    | admin_state_up        | True                                 |
+    | external_gateway_info |                                      |
+    | id                    | c633ee00-a9a0-4fb0-b8d4-4e8f8571903b |
+    | name                  | priv-1-to-uzh-only                   |
+    | routes                |                                      |
+    | status                | ACTIVE                               |
+    | tenant_id             | 92b952a1b50149a687f6b7c8f54eec4b     |
+    +-----------------------+--------------------------------------+
+
+Then we set the default gateway to the chosen external network
+(`uzh-only` in this case, but could also be `public`)
+
+    (cloud)(cred:training@sc)anmess@kenny:~$ neutron router-gateway-set priv-1-to-uzh-only uzh-only
+    Set gateway for router priv-1-to-uzh-only
+
+finally, we add an interface to the `prisubvnet-1` **subnet**
+
+    (cloud)(cred:training@sc)anmess@kenny:~$ neutron router-interface-add priv-1-to-uzh-only privsubnet-1
+    Added interface 6b004b6c-7e0e-4d0a-a90e-8baabcbe8ed6 to router priv-1-to-uzh-only.
+
+If you look now at the
+[Network Topology](https://cloud.s3it.uzh.ch/project/network_topology/)
+tab of the ScienceCloud web interface you should see something like:
+
+![privnet-1 -- priv-1-to-uzh-only -- uzh-only](net1.png)
+
 
 ### floating IPs
 
